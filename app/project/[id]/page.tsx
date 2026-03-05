@@ -1,7 +1,9 @@
 ﻿import type { Metadata } from "next";
 import Image from "next/image";
+import { cookies } from "next/headers";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { cache } from "react";
 import MarkdownRenderer from "@/components/MarkdownRenderer";
 import ProjectDetailClient from "@/components/ProjectDetailClient";
 import { auth } from "@/lib/auth";
@@ -9,14 +11,17 @@ import { getProjectById } from "@/lib/data-store";
 import { canManageProject } from "@/lib/permissions";
 
 export const dynamic = "force-dynamic";
+export const preferredRegion = "icn1";
 
 type Props = {
   params: Promise<{ id: string }>;
 };
 
+const getProjectCached = cache(async (id: string) => getProjectById(id));
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
-  const project = await getProjectById(id);
+  const project = await getProjectCached(id);
 
   if (!project) {
     return { title: "프로젝트를 찾을 수 없습니다." };
@@ -36,11 +41,18 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function ProjectDetailPage({ params }: Props) {
   const { id } = await params;
-  const project = await getProjectById(id);
+  const project = await getProjectCached(id);
   if (!project) notFound();
 
-  const session = await auth();
-  const canEdit = canManageProject(session, project.ownerId);
+  const cookieStore = await cookies();
+  const hasAuthCookie = cookieStore.getAll().some((cookie) => (
+    cookie.name.endsWith("authjs.session-token")
+    || cookie.name.endsWith("next-auth.session-token")
+  ));
+
+  const canEdit = hasAuthCookie
+    ? canManageProject(await auth(), project.ownerId)
+    : false;
 
   return (
     <main className="mx-auto max-w-4xl px-5 py-12">

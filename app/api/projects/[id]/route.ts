@@ -5,6 +5,7 @@ import { canManageProject } from "@/lib/permissions";
 import { isValidUrl } from "@/lib/utils";
 
 export const runtime = "nodejs";
+export const preferredRegion = "icn1";
 
 type Props = {
   params: Promise<{

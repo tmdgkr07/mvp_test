@@ -9,6 +9,7 @@ export const metadata: Metadata = {
 };
 
 export const dynamic = "force-dynamic";
+export const preferredRegion = "icn1";
 
 export default async function HomePage() {
   const projects = await listProjects();

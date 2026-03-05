@@ -4,6 +4,7 @@ import { createProject, listProjects } from "@/lib/data-store";
 import { isValidUrl } from "@/lib/utils";
 
 export const runtime = "nodejs";
+export const preferredRegion = "icn1";
 
 export async function GET() {
   const projects = await listProjects();
