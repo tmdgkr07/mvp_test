@@ -4,6 +4,8 @@
 .env
 .env.local
 .env.*.local
+.env.vercel.*
+.env.*.production
 npm-debug.log*
 tsconfig.tsbuildinfo
 read.md
