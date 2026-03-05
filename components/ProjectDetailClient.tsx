@@ -1,6 +1,7 @@
 ﻿"use client";
 
 import { useState } from "react";
+import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import ProjectEditor from "@/components/ProjectEditor";
 import type { Project } from "@/lib/types";
@@ -10,11 +11,13 @@ type ApiResult<T> = {
   error?: { code: string; message: string };
 };
 
-export default function ProjectDetailClient({ project, canEdit }: { project: Project; canEdit: boolean }) {
+export default function ProjectDetailClient({ project }: { project: Project }) {
+  const { data: session } = useSession();
   const router = useRouter();
   const [editing, setEditing] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const canEdit = Boolean(session?.user?.id && project.ownerId && session.user.id === project.ownerId);
 
   if (!canEdit) {
     return null;

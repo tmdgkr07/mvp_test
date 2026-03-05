@@ -1,16 +1,13 @@
 ﻿import type { Metadata } from "next";
 import Image from "next/image";
-import { cookies } from "next/headers";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { cache } from "react";
 import MarkdownRenderer from "@/components/MarkdownRenderer";
 import ProjectDetailClient from "@/components/ProjectDetailClient";
-import { auth } from "@/lib/auth";
 import { getProjectById } from "@/lib/data-store";
-import { canManageProject } from "@/lib/permissions";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 120;
 export const preferredRegion = "icn1";
 
 type Props = {
@@ -43,16 +40,6 @@ export default async function ProjectDetailPage({ params }: Props) {
   const { id } = await params;
   const project = await getProjectCached(id);
   if (!project) notFound();
-
-  const cookieStore = await cookies();
-  const hasAuthCookie = cookieStore.getAll().some((cookie) => (
-    cookie.name.endsWith("authjs.session-token")
-    || cookie.name.endsWith("next-auth.session-token")
-  ));
-
-  const canEdit = hasAuthCookie
-    ? canManageProject(await auth(), project.ownerId)
-    : false;
 
   return (
     <main className="mx-auto max-w-4xl px-5 py-12">
@@ -91,7 +78,7 @@ export default async function ProjectDetailPage({ params }: Props) {
         </div>
       </article>
 
-      <ProjectDetailClient project={project} canEdit={canEdit} />
+      <ProjectDetailClient project={project} />
     </main>
   );
 }
