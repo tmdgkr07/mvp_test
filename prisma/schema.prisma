@@ -29,6 +29,8 @@ model User {
   accounts      Account[]
   sessions      Session[]
   ownedProjects Project[] @relation("ProjectOwner")
+  followers     Follow[]  @relation("Following")
+  following     Follow[]  @relation("Follower")
 }
 
 model Account {
@@ -123,4 +125,18 @@ model Feedback {
   project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
   @@index([projectId, createdAt])
+}
+
+model Follow {
+  id          String   @id @default(cuid())
+  followerId  String
+  followingId String
+  createdAt   DateTime @default(now())
+
+  follower    User     @relation("Follower", fields: [followerId], references: [id], onDelete: Cascade)
+  following   User     @relation("Following", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@unique([followerId, followingId])
+  @@index([followerId])
+  @@index([followingId])
 }

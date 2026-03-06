@@ -79,6 +79,13 @@ export default async function ProjectDetailPage({ params }: Props) {
           <div>
             <h1 className="text-4xl font-black tracking-tight text-ink sm:text-6xl">{project.name}</h1>
             <p className="mt-4 text-xl font-medium leading-relaxed text-ink/75 sm:text-2xl">{project.tagline}</p>
+            {project.ownerId && (
+              <div className="mt-6 flex items-center gap-3">
+                <Link href={`/maker/${project.ownerId}`} className="inline-flex items-center gap-2 rounded-xl bg-ink/5 px-4 py-2 text-sm font-bold text-ink transition hover:bg-ink/10">
+                  <span>🧑‍💻 메이커 프로필 보기</span>
+                </Link>
+              </div>
+            )}
           </div>
         </div>
 
