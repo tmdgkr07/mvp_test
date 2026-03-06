@@ -8,6 +8,16 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
+enum ProjectStatus {
+  IDEA
+  VALIDATING
+  DEVELOPING
+  RELEASED
+  GROWING
+  PAUSED
+  PIVOTED
+}
+
 model User {
   id            String    @id @default(cuid())
   name          String?
@@ -74,8 +84,11 @@ model Project {
   websiteUrl   String
   supportUrl   String
   thumbnailUrl String
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  status       ProjectStatus @default(IDEA)
+  voteCount    Int       @default(0)
+  commentCount Int       @default(0)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
   events   AnalyticsEvent[]
   feedback Feedback[]

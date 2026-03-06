@@ -14,6 +14,9 @@ function mapProject(project: {
   websiteUrl: string;
   supportUrl: string;
   thumbnailUrl: string;
+  status: "IDEA" | "VALIDATING" | "DEVELOPING" | "RELEASED" | "GROWING" | "PAUSED" | "PIVOTED";
+  voteCount: number;
+  commentCount: number;
   createdAt: Date;
   updatedAt: Date;
 }): Project {
@@ -102,7 +105,8 @@ export async function createProject(input: CreateProjectInput, ownerId: string):
       detailContent: input.detailContent?.trim() || "",
       websiteUrl: input.websiteUrl,
       supportUrl: input.supportUrl,
-      thumbnailUrl: input.thumbnailUrl?.trim() || `https://api.dicebear.com/9.x/shapes/svg?seed=${encodeURIComponent(input.name)}`
+      thumbnailUrl: input.thumbnailUrl?.trim() || `https://api.dicebear.com/9.x/shapes/svg?seed=${encodeURIComponent(input.name)}`,
+      status: input.status || "IDEA"
     }
   });
 
@@ -129,12 +133,26 @@ export async function updateProject(id: string, input: UpdateProjectInput): Prom
       detailContent: input.detailContent?.trim() || undefined,
       websiteUrl: input.websiteUrl?.trim() || undefined,
       supportUrl: input.supportUrl?.trim() || undefined,
-      thumbnailUrl: input.thumbnailUrl?.trim() || undefined
+      thumbnailUrl: input.thumbnailUrl?.trim() || undefined,
+      status: input.status || undefined
     }
   });
 
   return mapProject(row);
 }
+
+export async function voteProject(id: string): Promise<Project | undefined> {
+  const existing = await prisma.project.findFirst({ where: { id, deletedAt: null } });
+  if (!existing) return undefined;
+
+  const row = await prisma.project.update({
+    where: { id },
+    data: { voteCount: { increment: 1 } }
+  });
+
+  return mapProject(row);
+}
+
 
 export async function softDeleteProject(id: string, actorId: string): Promise<Project | undefined> {
   const existing = await prisma.project.findFirst({ where: { id, deletedAt: null } });
@@ -215,6 +233,12 @@ export async function createFeedback(input: {
       sentiment: input.sentiment
     }
   });
+
+  await prisma.project.update({
+    where: { id: input.projectId },
+    data: { commentCount: { increment: 1 } }
+  });
+
   return mapFeedback(row);
 }
 

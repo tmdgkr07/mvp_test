@@ -46,6 +46,7 @@ export async function PATCH(request: Request, { params }: Props) {
     websiteUrl?: string;
     supportUrl?: string;
     thumbnailUrl?: string;
+    status?: "IDEA" | "VALIDATING" | "DEVELOPING" | "RELEASED" | "GROWING" | "PAUSED" | "PIVOTED";
   };
 
   if (body.websiteUrl?.trim() && !isValidUrl(body.websiteUrl)) {
