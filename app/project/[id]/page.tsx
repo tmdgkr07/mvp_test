@@ -6,6 +6,7 @@ import { cache } from "react";
 import MarkdownRenderer from "@/components/MarkdownRenderer";
 import ProjectDetailClient from "@/components/ProjectDetailClient";
 import VoteButton from "@/components/VoteButton";
+import WaitlistButton from "@/components/WaitlistButton";
 import { getProjectById } from "@/lib/data-store";
 
 export const revalidate = 120;
@@ -93,6 +94,9 @@ export default async function ProjectDetailPage({ params }: Props) {
         <div className="relative h-64 w-full overflow-hidden rounded-[2rem] shadow-md sm:h-96">
           <Image src={project.thumbnailUrl} alt={`${project.name} 썸네일`} fill className="object-cover" sizes="(max-width: 768px) 100vw, 900px" />
         </div>
+
+        {/* Waitlist Section */}
+        <WaitlistButton projectId={project.id} />
 
         {/* Markdown Content Section */}
         {project.detailContent && (
