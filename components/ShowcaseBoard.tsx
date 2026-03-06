@@ -243,6 +243,40 @@ export default function ShowcaseBoard({ initialProjects }: { initialProjects: Pr
         </div>
       </header>
 
+      {/* Project of the Week Banner */}
+      {projects.length > 0 && (
+        <div className="mt-8 overflow-hidden rounded-3xl bg-gradient-to-r from-support/10 via-support/5 to-canvas border border-support/20 p-1">
+          <div className="flex flex-col md:flex-row items-center gap-6 p-6 sm:p-8">
+            <div className="flex-1 space-y-4">
+              <div className="flex items-center gap-2">
+                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-support/20 text-lg">🏆</span>
+                <span className="text-sm font-black tracking-widest text-support uppercase">Project of the Week</span>
+              </div>
+              <div>
+                <h2 className="text-3xl font-black text-ink">{[...projects].sort((a, b) => (b.voteCount || 0) - (a.voteCount || 0))[0].name}</h2>
+                <p className="mt-2 text-lg font-medium text-ink/70 leading-relaxed">
+                  {[...projects].sort((a, b) => (b.voteCount || 0) - (a.voteCount || 0))[0].tagline}
+                </p>
+              </div>
+              <Link
+                href={`/project/${[...projects].sort((a, b) => (b.voteCount || 0) - (a.voteCount || 0))[0].id}`}
+                className="inline-flex items-center gap-2 rounded-2xl bg-support px-6 py-3 text-lg font-bold text-white shadow-lg transition hover:-translate-y-1 hover:bg-support/90"
+              >
+                이번 주 1위 프로젝트 보러가기 🚀
+              </Link>
+            </div>
+            <div className="relative h-48 w-full md:w-80 overflow-hidden rounded-2xl shadow-xl border border-ink/10">
+              <Image
+                src={[...projects].sort((a, b) => (b.voteCount || 0) - (a.voteCount || 0))[0].thumbnailUrl}
+                alt="Weekly Top Project"
+                fill
+                className="object-cover"
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
       <section className="mt-7">
         {loading && <p className="rounded-xl bg-paper px-4 py-3 text-sm text-ink/70">프로젝트를 불러오는 중입니다...</p>}
         {error && <p className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>}
