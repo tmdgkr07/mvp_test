@@ -8,7 +8,7 @@ export const metadata: Metadata = {
   description: "MVP를 탐색하고 후원/피드백 루프를 연결하는 메인 페이지"
 };
 
-export const revalidate = 60;
+export const dynamic = "force-dynamic";
 export const preferredRegion = "icn1";
 
 export default async function HomePage() {
