@@ -64,6 +64,7 @@ export default function ShowcaseBoard({ initialProjects }: { initialProjects: Pr
   const [submittingFeedback, setSubmittingFeedback] = useState(false);
   const [activeFilter, setActiveFilter] = useState<string>("ALL");
   const [sortOrder, setSortOrder] = useState<"LATEST" | "POPULAR">("LATEST");
+  const [searchQuery, setSearchQuery] = useState("");
 
   const sessionStartedAtRef = useRef<number>(Date.now());
   const sessionIdRef = useRef<string>("");
@@ -254,118 +255,141 @@ export default function ShowcaseBoard({ initialProjects }: { initialProjects: Pr
         )}
 
         {!loading && !error && projects.length > 0 && (
-          <div className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div className="flex flex-wrap items-center gap-2">
-              <button
-                onClick={() => setActiveFilter("ALL")}
-                className={`rounded-full px-5 py-2 text-sm font-bold transition-all ${activeFilter === "ALL" ? "bg-ink text-white shadow-md" : "bg-white border border-ink/10 text-ink/70 hover:bg-ink/5"}`}
-              >
-                전체
-              </button>
-              {Object.entries(STATUS_LABELS).map(([key, { label }]) => (
-                <button
-                  key={key}
-                  onClick={() => setActiveFilter(key)}
-                  className={`rounded-full px-5 py-2 text-sm font-bold transition-all ${activeFilter === key ? "bg-ink text-white shadow-md" : "bg-white border border-ink/10 text-ink/70 hover:bg-ink/5"}`}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
+          <>
+            <div className="mb-8 flex flex-col gap-6">
+              {/* Search Bar */}
+              <div className="relative">
+                <span className="absolute left-5 top-1/2 -translate-y-1/2 text-xl">🔍</span>
+                <input
+                  type="text"
+                  placeholder="프로젝트 명, 태그, 키워드로 검색해보세요..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full rounded-2xl border border-ink/10 bg-white py-4 pl-14 pr-6 text-lg font-medium shadow-sm transition-all focus:border-ink/30 focus:outline-none focus:ring-4 focus:ring-ink/5"
+                />
+              </div>
 
-            <div className="flex items-center gap-1 rounded-xl bg-ink/5 p-1 border border-ink/5">
-              <button
-                onClick={() => setSortOrder("LATEST")}
-                className={`rounded-lg px-4 py-1.5 text-sm font-bold transition-all ${sortOrder === "LATEST" ? "bg-white text-ink shadow-sm" : "text-ink/60 hover:text-ink"}`}
-              >
-                최신순
-              </button>
-              <button
-                onClick={() => setSortOrder("POPULAR")}
-                className={`rounded-lg px-4 py-1.5 text-sm font-bold transition-all ${sortOrder === "POPULAR" ? "bg-white text-ink shadow-sm" : "text-ink/60 hover:text-ink"}`}
-              >
-                🔥 인기순
-              </button>
-            </div>
-          </div>
-        )}
-
-        <div className="grid grid-cols-1 gap-8 md:grid-cols-2 xl:grid-cols-3">
-          {projects
-            .filter((project) => activeFilter === "ALL" || project.status === activeFilter)
-            .sort((a, b) => {
-              if (sortOrder === "POPULAR") {
-                return b.voteCount - a.voteCount || new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-              }
-              return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-            })
-            .map((project, index) => (
-              <article key={project.id} className="group overflow-hidden rounded-[24px] border border-ink/5 bg-white shadow-sm transition-all duration-300 hover:-translate-y-2 hover:shadow-xl">
-                <div className="relative h-56 w-full">
-                  <div className="absolute left-4 top-4 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-white/90 text-sm font-black text-ink shadow-sm backdrop-blur-sm">
-                    {index + 1}
-                  </div>
-                  <Image src={project.thumbnailUrl} alt={`${project.name} 썸네일`} fill className="object-cover transition-transform duration-500 group-hover:scale-105" sizes="(max-width: 768px) 100vw, 33vw" />
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    onClick={() => setActiveFilter("ALL")}
+                    className={`rounded-full px-5 py-2 text-sm font-bold transition-all ${activeFilter === "ALL" ? "bg-ink text-white shadow-md" : "bg-white border border-ink/10 text-ink/70 hover:bg-ink/5"}`}
+                  >
+                    전체
+                  </button>
+                  {Object.entries(STATUS_LABELS).map(([key, { label }]) => (
+                    <button
+                      key={key}
+                      onClick={() => setActiveFilter(key)}
+                      className={`rounded-full px-5 py-2 text-sm font-bold transition-all ${activeFilter === key ? "bg-ink text-white shadow-md" : "bg-white border border-ink/10 text-ink/70 hover:bg-ink/5"}`}
+                    >
+                      {label}
+                    </button>
+                  ))}
                 </div>
 
-                <div className="space-y-5 p-7">
-                  <div>
-                    <div className="mb-2 flex items-center justify-between">
-                      {project.status && STATUS_LABELS[project.status] && (
-                        <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-semibold ${STATUS_LABELS[project.status].color}`}>
-                          {STATUS_LABELS[project.status].label}
-                        </span>
-                      )}
-                      <div className="flex items-center gap-3 text-sm font-medium text-ink/60">
-                        <div onClick={(e) => { e.preventDefault(); e.stopPropagation(); }} className="flex">
-                          <VoteButton projectId={project.id} initialVotes={project.voteCount || 0} />
+                <div className="flex items-center gap-1 rounded-xl bg-ink/5 p-1 border border-ink/5">
+                  <button
+                    onClick={() => setSortOrder("LATEST")}
+                    className={`rounded-lg px-4 py-1.5 text-sm font-bold transition-all ${sortOrder === "LATEST" ? "bg-white text-ink shadow-sm" : "text-ink/60 hover:text-ink"}`}
+                  >
+                    최신순
+                  </button>
+                  <button
+                    onClick={() => setSortOrder("POPULAR")}
+                    className={`rounded-lg px-4 py-1.5 text-sm font-bold transition-all ${sortOrder === "POPULAR" ? "bg-white text-ink shadow-sm" : "text-ink/60 hover:text-ink"}`}
+                  >
+                    🔥 인기순
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 gap-8 md:grid-cols-2 xl:grid-cols-3">
+              {projects
+                .filter((project) => {
+                  const matchesFilter = activeFilter === "ALL" || project.status === activeFilter;
+                  const matchesSearch =
+                    project.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                    project.tagline.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                    (project.tags && project.tags.some(t => t.toLowerCase().includes(searchQuery.toLowerCase())));
+                  return matchesFilter && matchesSearch;
+                })
+                .sort((a, b) => {
+                  if (sortOrder === "POPULAR") {
+                    return b.voteCount - a.voteCount || new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+                  }
+                  return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+                })
+                .map((project, index) => (
+                  <article key={project.id} className="group overflow-hidden rounded-[24px] border border-ink/5 bg-white shadow-sm transition-all duration-300 hover:-translate-y-2 hover:shadow-xl">
+                    <div className="relative h-56 w-full">
+                      <div className="absolute left-4 top-4 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-white/90 text-sm font-black text-ink shadow-sm backdrop-blur-sm">
+                        {index + 1}
+                      </div>
+                      <Image src={project.thumbnailUrl} alt={`${project.name} 썸네일`} fill className="object-cover transition-transform duration-500 group-hover:scale-105" sizes="(max-width: 768px) 100vw, 33vw" />
+                    </div>
+
+                    <div className="space-y-5 p-7">
+                      <div>
+                        <div className="mb-2 flex items-center justify-between">
+                          {project.status && STATUS_LABELS[project.status] && (
+                            <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-semibold ${STATUS_LABELS[project.status].color}`}>
+                              {STATUS_LABELS[project.status].label}
+                            </span>
+                          )}
+                          <div className="flex items-center gap-3 text-sm font-medium text-ink/60">
+                            <div onClick={(e) => { e.preventDefault(); e.stopPropagation(); }} className="flex">
+                              <VoteButton projectId={project.id} initialVotes={project.voteCount || 0} />
+                            </div>
+                            <span className="flex items-center gap-1.5" title="댓글/피드백 수">
+                              💬 {project.commentCount || 0}
+                            </span>
+                          </div>
                         </div>
-                        <span className="flex items-center gap-1.5" title="댓글/피드백 수">
-                          💬 {project.commentCount || 0}
-                        </span>
+                        <h2 className="text-xl font-extrabold text-ink">{project.name}</h2>
+                        <p className="mt-1 text-sm leading-relaxed text-ink/75">{project.tagline}</p>
+                      </div>
+
+                      <div className="flex gap-2">
+                        <a
+                          href={project.websiteUrl}
+                          target="_blank"
+                          rel="noreferrer noopener"
+                          onClick={() => {
+                            markStage(project.id, "website_click");
+                            void logEvent({ type: "website_click", projectId: project.id, metadata: { from: "main_card" } });
+                          }}
+                          className="flex-1 rounded-xl bg-support px-3 py-2.5 text-center text-sm font-semibold text-white hover:bg-support/90"
+                        >
+                          웹사이트 바로가기
+                        </a>
+                        <Link href={`/project/${project.id}`} className="rounded-xl border border-ink/15 px-4 py-3 text-center text-sm font-bold text-ink transition hover:bg-ink hover:text-white">
+                          상세보기
+                        </Link>
+                      </div>
+
+                      <div className="pt-2">
+                        <p className="text-xs font-bold uppercase tracking-widest text-ink/45">후원하기</p>
+                        <div className="mt-2 grid grid-cols-3 gap-2">
+                          {SUPPORT_TIERS.map((tier) => (
+                            <button
+                              key={tier.key}
+                              type="button"
+                              onClick={() => handleSupportClick(project, tier)}
+                              className="rounded-lg bg-accent/10 px-2 py-2 text-xs font-bold text-accent hover:bg-accent hover:text-white"
+                            >
+                              {tier.label}
+                            </button>
+                          ))}
+                        </div>
                       </div>
                     </div>
-                    <h2 className="text-xl font-extrabold text-ink">{project.name}</h2>
-                    <p className="mt-1 text-sm leading-relaxed text-ink/75">{project.tagline}</p>
-                  </div>
-
-                  <div className="flex gap-2">
-                    <a
-                      href={project.websiteUrl}
-                      target="_blank"
-                      rel="noreferrer noopener"
-                      onClick={() => {
-                        markStage(project.id, "website_click");
-                        void logEvent({ type: "website_click", projectId: project.id, metadata: { from: "main_card" } });
-                      }}
-                      className="flex-1 rounded-xl bg-support px-3 py-2.5 text-center text-sm font-semibold text-white hover:bg-support/90"
-                    >
-                      웹사이트 바로가기
-                    </a>
-                    <Link href={`/project/${project.id}`} className="rounded-xl border border-ink/15 px-4 py-3 text-center text-sm font-bold text-ink transition hover:bg-ink hover:text-white">
-                      상세보기
-                    </Link>
-                  </div>
-
-                  <div className="pt-2">
-                    <p className="text-xs font-bold uppercase tracking-widest text-ink/45">후원하기</p>
-                    <div className="mt-2 grid grid-cols-3 gap-2">
-                      {SUPPORT_TIERS.map((tier) => (
-                        <button
-                          key={tier.key}
-                          type="button"
-                          onClick={() => handleSupportClick(project, tier)}
-                          className="rounded-lg bg-accent/10 px-2 py-2 text-xs font-bold text-accent hover:bg-accent hover:text-white"
-                        >
-                          {tier.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </article>
-            ))}
-        </div>
+                  </article>
+                ))}
+            </div>
+          </>
+        )}
       </section>
 
       {feedbackTarget && (
