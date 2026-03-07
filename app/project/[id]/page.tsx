@@ -6,6 +6,7 @@ import { cache } from "react";
 import MarkdownRenderer from "@/components/MarkdownRenderer";
 import ProjectDetailClient from "@/components/ProjectDetailClient";
 import VoteButton from "@/components/VoteButton";
+import WaitlistButton from "@/components/WaitlistButton";
 import { getProjectById } from "@/lib/data-store";
 
 export const revalidate = 120;
@@ -79,6 +80,13 @@ export default async function ProjectDetailPage({ params }: Props) {
           <div>
             <h1 className="text-4xl font-black tracking-tight text-ink sm:text-6xl">{project.name}</h1>
             <p className="mt-4 text-xl font-medium leading-relaxed text-ink/75 sm:text-2xl">{project.tagline}</p>
+            {project.ownerId && (
+              <div className="mt-6 flex items-center gap-3">
+                <Link href={`/maker/${project.ownerId}`} className="inline-flex items-center gap-2 rounded-xl bg-ink/5 px-4 py-2 text-sm font-bold text-ink transition hover:bg-ink/10">
+                  <span>🧑‍💻 메이커 프로필 보기</span>
+                </Link>
+              </div>
+            )}
           </div>
         </div>
 
@@ -86,6 +94,9 @@ export default async function ProjectDetailPage({ params }: Props) {
         <div className="relative h-64 w-full overflow-hidden rounded-[2rem] shadow-md sm:h-96">
           <Image src={project.thumbnailUrl} alt={`${project.name} 썸네일`} fill className="object-cover" sizes="(max-width: 768px) 100vw, 900px" />
         </div>
+
+        {/* Waitlist Section */}
+        <WaitlistButton projectId={project.id} />
 
         {/* Markdown Content Section */}
         {project.detailContent && (

@@ -17,12 +17,14 @@ function mapProject(project: {
   status: "IDEA" | "VALIDATING" | "DEVELOPING" | "RELEASED" | "GROWING" | "PAUSED" | "PIVOTED";
   voteCount: number;
   commentCount: number;
+  tags: string[];
   createdAt: Date;
   updatedAt: Date;
 }): Project {
   return {
     ...project,
     deletedAt: project.deletedAt ? toISOStringSafe(project.deletedAt) : null,
+    tags: project.tags || [],
     createdAt: toISOStringSafe(project.createdAt),
     updatedAt: toISOStringSafe(project.updatedAt)
   };
@@ -81,7 +83,7 @@ export async function listProjects(options?: { includeDeleted?: boolean }): Prom
     where: options?.includeDeleted ? undefined : { deletedAt: null },
     orderBy: { createdAt: "desc" }
   });
-  return rows.map(mapProject);
+  return (rows as any[]).map(mapProject);
 }
 
 export async function getProjectById(id: string, options?: { includeDeleted?: boolean }): Promise<Project | undefined> {
@@ -91,7 +93,7 @@ export async function getProjectById(id: string, options?: { includeDeleted?: bo
       ...(options?.includeDeleted ? {} : { deletedAt: null })
     }
   });
-  return row ? mapProject(row) : undefined;
+  return row ? mapProject(row as any) : undefined;
 }
 
 export async function createProject(input: CreateProjectInput, ownerId: string): Promise<Project> {
@@ -106,11 +108,12 @@ export async function createProject(input: CreateProjectInput, ownerId: string):
       websiteUrl: input.websiteUrl,
       supportUrl: input.supportUrl,
       thumbnailUrl: input.thumbnailUrl?.trim() || `https://api.dicebear.com/9.x/shapes/svg?seed=${encodeURIComponent(input.name)}`,
-      status: input.status || "IDEA"
+      status: input.status || "IDEA",
+      tags: input.tags || []
     }
   });
 
-  return mapProject(row);
+  return mapProject(row as any);
 }
 
 export async function updateProject(id: string, input: UpdateProjectInput): Promise<Project | undefined> {
@@ -134,11 +137,12 @@ export async function updateProject(id: string, input: UpdateProjectInput): Prom
       websiteUrl: input.websiteUrl?.trim() || undefined,
       supportUrl: input.supportUrl?.trim() || undefined,
       thumbnailUrl: input.thumbnailUrl?.trim() || undefined,
-      status: input.status || undefined
+      status: input.status || undefined,
+      tags: input.tags || undefined
     }
   });
 
-  return mapProject(row);
+  return mapProject(row as any);
 }
 
 export async function voteProject(id: string): Promise<Project | undefined> {
@@ -150,7 +154,7 @@ export async function voteProject(id: string): Promise<Project | undefined> {
     data: { voteCount: { increment: 1 } }
   });
 
-  return mapProject(row);
+  return mapProject(row as any);
 }
 
 
@@ -168,7 +172,7 @@ export async function softDeleteProject(id: string, actorId: string): Promise<Pr
     }
   });
 
-  return mapProject(row);
+  return mapProject(row as any);
 }
 
 export async function restoreProject(id: string): Promise<Project | undefined> {
@@ -190,7 +194,7 @@ export async function restoreProject(id: string): Promise<Project | undefined> {
     }
   });
 
-  return mapProject(row);
+  return mapProject(row as any);
 }
 
 export async function appendEvent(input: {
@@ -272,6 +276,23 @@ export async function getProjectMetaById(projectId: string): Promise<{ ownerId: 
   return {
     ownerId: row.ownerId,
     deletedAt: row.deletedAt ? toISOStringSafe(row.deletedAt) : null
+  };
+}
+
+export async function getGlobalStats() {
+  const [projectCount, userCount, voteAggregate] = await Promise.all([
+    prisma.project.count({ where: { deletedAt: null } }),
+    prisma.user.count(),
+    prisma.project.aggregate({
+      where: { deletedAt: null },
+      _sum: { voteCount: true }
+    })
+  ]);
+
+  return {
+    totalProjects: projectCount,
+    totalUsers: userCount,
+    totalVotes: voteAggregate._sum.voteCount || 0
   };
 }
 

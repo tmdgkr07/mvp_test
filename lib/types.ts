@@ -26,6 +26,7 @@ export interface Project {
   status: "IDEA" | "VALIDATING" | "DEVELOPING" | "RELEASED" | "GROWING" | "PAUSED" | "PIVOTED";
   voteCount: number;
   commentCount: number;
+  tags: string[];
   createdAt: string;
   updatedAt: string;
 }
@@ -56,6 +57,7 @@ export interface CreateProjectInput {
   supportUrl: string;
   thumbnailUrl?: string;
   status?: "IDEA" | "VALIDATING" | "DEVELOPING" | "RELEASED" | "GROWING" | "PAUSED" | "PIVOTED";
+  tags?: string[];
 }
 
 export interface UpdateProjectInput {
@@ -66,6 +68,7 @@ export interface UpdateProjectInput {
   supportUrl?: string;
   thumbnailUrl?: string;
   status?: "IDEA" | "VALIDATING" | "DEVELOPING" | "RELEASED" | "GROWING" | "PAUSED" | "PIVOTED";
+  tags?: string[];
 }
 
 declare module "next-auth" {

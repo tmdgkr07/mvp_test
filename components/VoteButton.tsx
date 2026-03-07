@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import confetti from "canvas-confetti";
+import { motion } from "framer-motion";
 
 export default function VoteButton({ projectId, initialVotes }: { projectId: string; initialVotes: number }) {
     const [votes, setVotes] = useState(initialVotes);
@@ -17,10 +18,10 @@ export default function VoteButton({ projectId, initialVotes }: { projectId: str
         const y = (rect.top + rect.height / 2) / window.innerHeight;
 
         confetti({
-            particleCount: 50,
-            spread: 60,
+            particleCount: 40,
+            spread: 70,
             origin: { x, y },
-            colors: ["#FFA500", "#FF4500", "#FFD700"]
+            colors: ["#E16A2F", "#0C6A6D", "#FFD700"]
         });
 
         setVotes((prev) => prev + 1);
@@ -36,11 +37,17 @@ export default function VoteButton({ projectId, initialVotes }: { projectId: str
     };
 
     return (
-        <button
+        <motion.button
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.9 }}
             onClick={handleVote}
-            className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 transition-all text-sm font-bold shadow-sm ${votes > initialVotes ? "bg-orange-100 text-orange-600 scale-105" : "bg-ink/5 text-ink/70 hover:bg-ink/10 hover:scale-105"}`}
+            className={`flex items-center gap-2 rounded-full px-4 py-2 transition-all text-sm font-black shadow-sm ${votes > initialVotes
+                ? "bg-accent text-white"
+                : "bg-ink/5 text-ink/60 hover:bg-ink/10"
+                }`}
         >
-            🔥 {votes}
-        </button>
+            <span className="text-base">🔥</span>
+            <span>{votes}</span>
+        </motion.button>
     );
 }

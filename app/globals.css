@@ -3,26 +3,54 @@
 @tailwind utilities;
 
 :root {
-  --bg: #f6f2e8;
+  --bg: #f9f7f2;
   --ink: #11222e;
+  --accent: #e16a2f;
+  --support: #0c6a6d;
+  --paper: #ffffff;
 }
 
-* {
-  box-sizing: border-box;
+@layer base {
+  * {
+    @apply border-ink/5;
+  }
+  body {
+    @apply bg-canvas text-ink antialiased selection:bg-accent/20 selection:text-ink;
+    font-family: var(--font-noto-sans-kr), var(--font-manrope), sans-serif;
+  }
 }
 
-body {
-  margin: 0;
-  min-height: 100vh;
-  background:
-    radial-gradient(circle at 0% 0%, rgba(12, 106, 109, 0.2), transparent 45%),
-    radial-gradient(circle at 100% 20%, rgba(225, 106, 47, 0.2), transparent 40%),
-    var(--bg);
-  color: var(--ink);
-  font-family: var(--font-noto-sans-kr), var(--font-manrope), sans-serif;
+@layer components {
+  .glass {
+    @apply bg-white/70 backdrop-blur-xl border border-white/20;
+  }
+  
+  .glass-dark {
+    @apply bg-ink/80 backdrop-blur-xl border border-white/10;
+  }
+
+  .text-gradient {
+    @apply bg-gradient-to-r from-ink via-accent to-ink bg-clip-text text-transparent bg-[length:200%_auto] animate-gradient;
+  }
 }
 
-a {
-  color: inherit;
-  text-decoration: none;
+@keyframes gradient {
+  0% { background-position: 0% center; }
+  50% { background-position: 100% center; }
+  100% { background-position: 0% center; }
+}
+
+.animate-gradient {
+  animation: gradient 8s linear infinite;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 10px;
+}
+::-webkit-scrollbar-track {
+  @apply bg-canvas;
+}
+::-webkit-scrollbar-thumb {
+  @apply bg-ink/10 rounded-full border-4 border-solid border-canvas hover:bg-ink/20 transition-colors;
 }
