@@ -279,6 +279,23 @@ export async function getProjectMetaById(projectId: string): Promise<{ ownerId: 
   };
 }
 
+export async function getGlobalStats() {
+  const [projectCount, userCount, voteAggregate] = await Promise.all([
+    prisma.project.count({ where: { deletedAt: null } }),
+    prisma.user.count(),
+    prisma.project.aggregate({
+      where: { deletedAt: null },
+      _sum: { voteCount: true }
+    })
+  ]);
+
+  return {
+    totalProjects: projectCount,
+    totalUsers: userCount,
+    totalVotes: voteAggregate._sum.voteCount || 0
+  };
+}
+
 export function normalizeEventMetadata(input: unknown) {
   return parseMetadata(input);
 }
