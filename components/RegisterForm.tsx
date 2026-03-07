@@ -9,10 +9,16 @@ import MarkdownRenderer from "@/components/MarkdownRenderer";
 type FormState = {
   name: string;
   tagline: string;
-  detailContent: string;
   websiteUrl: string;
   supportUrl: string;
   thumbnailUrl: string;
+  status: "IDEA" | "VALIDATING" | "DEVELOPING" | "RELEASED" | "GROWING" | "PAUSED" | "PIVOTED";
+
+  // Template specific fields
+  problemState: string;
+  solutionState: string;
+  featureList: string;
+  socialProof: string;
 };
 
 type ApiResult<T> = {
@@ -20,22 +26,24 @@ type ApiResult<T> = {
   error?: { code: string; message: string };
 };
 
-type EditorTab = "write" | "preview";
 
 const INITIAL_FORM: FormState = {
   name: "",
   tagline: "",
-  detailContent: "",
   websiteUrl: "",
   supportUrl: "",
-  thumbnailUrl: ""
+  thumbnailUrl: "",
+  status: "IDEA",
+  problemState: "",
+  solutionState: "",
+  featureList: "- 핵심 기능 1\n- 핵심 기능 2\n- 핵심 기능 3",
+  socialProof: ""
 };
 
 export default function RegisterForm() {
   const router = useRouter();
   const { data: session, status } = useSession();
   const [form, setForm] = useState<FormState>(INITIAL_FORM);
-  const [tab, setTab] = useState<EditorTab>("write");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<{ id: string; name: string } | null>(null);
@@ -44,24 +52,37 @@ export default function RegisterForm() {
     setForm((prev) => ({ ...prev, [key]: value }));
   }
 
-  function appendTemplate(template: string) {
-    setForm((prev) => ({
-      ...prev,
-      detailContent: prev.detailContent ? `${prev.detailContent}\n\n${template}` : template
-    }));
-  }
-
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setLoading(true);
     setError(null);
     setSuccess(null);
 
+    const combinedDetailContent = `
+## 이런 문제, 겪고 계시나요?
+${form.problemState.trim() || "(내용 없음)"}
+
+---
+
+## 우리의 솔루션
+${form.solutionState.trim() || "(내용 없음)"}
+
+---
+
+## 핵심 기능
+${form.featureList.trim() || "(내용 없음)"}
+
+${form.socialProof.trim() ? `\n---\n\n## 검증 결과 및 사용자 후기 (Social Proof)\n${form.socialProof.trim()}` : ""}
+    `.trim();
+
     try {
       const response = await fetch("/api/projects", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form)
+        body: JSON.stringify({
+          ...form,
+          detailContent: combinedDetailContent
+        })
       });
 
       const payload = (await response.json()) as ApiResult<{ project: { id: string; name: string } }>;
@@ -125,40 +146,76 @@ export default function RegisterForm() {
             />
           </label>
 
-          <div className="rounded-xl border border-ink/15 bg-white p-3">
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-sm font-semibold text-ink">상세 페이지 본문 (Markdown)</span>
-              <div className="flex gap-1">
-                <button type="button" onClick={() => setTab("write")} className={`rounded-md px-3 py-1 text-xs font-semibold ${tab === "write" ? "bg-ink text-white" : "bg-ink/10"}`}>
-                  에디터
-                </button>
-                <button type="button" onClick={() => setTab("preview")} className={`rounded-md px-3 py-1 text-xs font-semibold ${tab === "preview" ? "bg-ink text-white" : "bg-ink/10"}`}>
-                  미리보기
-                </button>
-              </div>
+          <label className="block">
+            <span className="text-sm font-semibold">현재 진행 상태</span>
+            <select
+              value={form.status}
+              onChange={(event) => updateField("status", event.target.value as any)}
+              className="mt-1.5 w-full rounded-xl border border-ink/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-support"
+            >
+              <option value="IDEA">아이디어 (Idea)</option>
+              <option value="VALIDATING">검증 중 (Validating)</option>
+              <option value="DEVELOPING">개발 중 (Developing)</option>
+              <option value="RELEASED">출시 완료 (Released)</option>
+              <option value="GROWING">성장 중 (Growing)</option>
+              <option value="PAUSED">일시 중단 (Paused)</option>
+              <option value="PIVOTED">피봇 (Pivoted)</option>
+            </select>
+          </label>
+
+          {/* 템플릿 입력 영역 */}
+          <div className="mt-6 flex flex-col gap-6 rounded-2xl border border-ink/10 bg-canvas/30 p-5 sm:p-7">
+            <div>
+              <h3 className="text-lg font-bold text-ink">상세 소개 템플릿</h3>
+              <p className="mt-1 text-sm text-ink/60">아래 4가지 항목을 작성하면 템플릿에 맞게 자동으로 상세 페이지가 구성됩니다.</p>
             </div>
 
-            <div className="mt-2 flex flex-wrap gap-2">
-              <button type="button" onClick={() => appendTemplate("## 섹션 제목\n내용을 입력하세요.")} className="rounded-md border border-ink/20 px-2 py-1 text-xs">제목 추가</button>
-              <button type="button" onClick={() => appendTemplate("![이미지 설명](https://images.unsplash.com/photo-1517048676732-d65bc937f952?auto=format&fit=crop&w=1200&q=80)")} className="rounded-md border border-ink/20 px-2 py-1 text-xs">이미지 추가</button>
-              <button type="button" onClick={() => appendTemplate("- 핵심 기능 1\n- 핵심 기능 2\n- 핵심 기능 3")} className="rounded-md border border-ink/20 px-2 py-1 text-xs">리스트 추가</button>
-            </div>
+            <div className="space-y-4">
+              <label className="block">
+                <span className="text-sm font-bold text-ink hover:text-support">1. 문제 정의 (어떤 문제를 해결하나요?)</span>
+                <p className="mb-1 text-xs text-ink/60">가장 공감할 수 있는 고객의 Pain Point를 적어주세요.</p>
+                <textarea
+                  value={form.problemState}
+                  onChange={(event) => updateField("problemState", event.target.value)}
+                  className="mt-1.5 h-24 w-full rounded-xl border border-ink/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-support"
+                  placeholder="예: 기존의 앱들은 너무 기능이 많아서 오히려 집중하기 어려웠습니다."
+                />
+              </label>
 
-            {tab === "write" ? (
-              <textarea
-                value={form.detailContent}
-                onChange={(event) => updateField("detailContent", event.target.value)}
-                className="mt-3 h-52 w-full rounded-xl border border-ink/20 bg-white px-3 py-2.5 text-sm"
-                placeholder="상세 페이지에 표시할 본문을 작성하세요."
-              />
-            ) : (
-              <div className="mt-3 min-h-52 rounded-xl border border-ink/10 bg-canvas/60 p-3">
-                {form.detailContent.trim() ? <MarkdownRenderer content={form.detailContent} /> : <p className="text-sm text-ink/60">미리볼 본문이 없습니다.</p>}
-              </div>
-            )}
+              <label className="block">
+                <span className="text-sm font-bold text-ink hover:text-support">2. 솔루션 소개 (어떻게 해결하나요?)</span>
+                <textarea
+                  value={form.solutionState}
+                  onChange={(event) => updateField("solutionState", event.target.value)}
+                  className="mt-1.5 h-24 w-full rounded-xl border border-ink/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-support"
+                  placeholder="예: 우리는 단 하나의 버튼만 남긴 초단순 UI를 제공하여 몰입을 돕습니다."
+                />
+              </label>
+
+              <label className="block">
+                <span className="text-sm font-bold text-ink hover:text-support">3. 핵심 기능 설명</span>
+                <p className="mb-1 text-xs text-ink/60">마크다운 리스트 형식(-)으로 작성하면 깔끔합니다.</p>
+                <textarea
+                  value={form.featureList}
+                  onChange={(event) => updateField("featureList", event.target.value)}
+                  className="mt-1.5 h-32 w-full rounded-xl border border-ink/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-support cursor-text"
+                />
+              </label>
+
+              <label className="block">
+                <span className="text-sm font-bold text-ink hover:text-support">4. 검증 결과 및 사회적 증거 (Social Proof - 선택)</span>
+                <p className="mb-1 text-xs text-ink/60">사용자들의 후기나, 지금까지의 성과(다운로드 수 등)를 자유롭게 뽐내주세요.</p>
+                <textarea
+                  value={form.socialProof}
+                  onChange={(event) => updateField("socialProof", event.target.value)}
+                  className="mt-1.5 h-24 w-full rounded-xl border border-ink/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-support"
+                  placeholder="예: 클로즈 베타 3일만에 1,000명의 대기자가 모였습니다!"
+                />
+              </label>
+            </div>
           </div>
 
-          <label className="block">
+          <label className="block mt-6">
             <span className="text-sm font-semibold">프로젝트 URL *</span>
             <input
               type="url"

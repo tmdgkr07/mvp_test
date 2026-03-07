@@ -24,6 +24,7 @@ export async function POST(request: Request) {
     websiteUrl?: string;
     supportUrl?: string;
     thumbnailUrl?: string;
+    status?: "IDEA" | "VALIDATING" | "DEVELOPING" | "RELEASED" | "GROWING" | "PAUSED" | "PIVOTED";
   };
 
   if (!body.name?.trim()) {
@@ -49,7 +50,8 @@ export async function POST(request: Request) {
       detailContent: body.detailContent,
       websiteUrl: body.websiteUrl.trim(),
       supportUrl: body.supportUrl.trim(),
-      thumbnailUrl: body.thumbnailUrl?.trim()
+      thumbnailUrl: body.thumbnailUrl?.trim(),
+      status: body.status || "IDEA"
     },
     session.user.id
   );

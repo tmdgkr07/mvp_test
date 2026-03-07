@@ -119,61 +119,75 @@ export default function BuilderDashboard() {
             )}
           </div>
 
-          <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <div className="rounded-2xl bg-paper p-5 shadow-card">
-              <p className="text-sm text-ink/60">총 세션</p>
-              <p className="mt-2 text-3xl font-black text-ink">{dashboard.totalSessions}</p>
+          <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="flex flex-col rounded-3xl bg-blue-50 p-6 shadow-sm border border-blue-100">
+              <span className="text-sm font-bold text-blue-800">👥 총 세션 (방문자)</span>
+              <span className="mt-3 text-4xl font-black text-blue-900">{dashboard.totalSessions}</span>
+              <p className="mt-2 text-xs font-semibold text-blue-600/70">프로젝트에 관심 보인 유저</p>
             </div>
-            <div className="rounded-2xl bg-paper p-5 shadow-card">
-              <p className="text-sm text-ink/60">평균 체류(초)</p>
-              <p className="mt-2 text-3xl font-black text-ink">{dashboard.avgSessionSeconds}</p>
+            <div className="flex flex-col rounded-3xl bg-emerald-50 p-6 shadow-sm border border-emerald-100">
+              <span className="text-sm font-bold text-emerald-800">⏱️ 평균 체류(초)</span>
+              <span className="mt-3 text-4xl font-black text-emerald-900">{dashboard.avgSessionSeconds}</span>
+              <p className="mt-2 text-xs font-semibold text-emerald-600/70">콘텐츠 흡수 시간</p>
             </div>
-            <div className="rounded-2xl bg-paper p-5 shadow-card">
-              <p className="text-sm text-ink/60">피드백 수</p>
-              <p className="mt-2 text-3xl font-black text-ink">{dashboard.feedback.length}</p>
+            <div className="flex flex-col rounded-3xl bg-orange-50 p-6 shadow-sm border border-orange-100">
+              <span className="text-sm font-bold text-orange-800">💬 피드백 수</span>
+              <span className="mt-3 text-4xl font-black text-orange-900">{dashboard.feedback.length}</span>
+              <p className="mt-2 text-xs font-semibold text-orange-600/70">유저의 소중한 의견</p>
             </div>
-            <div className="rounded-2xl bg-paper p-5 shadow-card">
-              <p className="text-sm text-ink/60">최종 퍼널 단계</p>
-              <p className="mt-2 text-lg font-black text-ink">{dashboard.funnel.at(-1)?.stage || "-"}</p>
+            <div className="flex flex-col rounded-3xl bg-purple-50 p-6 shadow-sm border border-purple-100">
+              <span className="text-sm font-bold text-purple-800">🔥 최종 퍼널</span>
+              <span className="mt-3 text-2xl font-black text-purple-900 break-words">{dashboard.funnel.at(-1)?.stage || "-"}</span>
+              <p className="mt-2 text-xs font-semibold text-purple-600/70">전환이 가장 많이 일어난 곳</p>
             </div>
           </div>
 
-          <section className="mt-6 grid gap-6 lg:grid-cols-2">
-            <div className="rounded-2xl bg-paper p-5 shadow-card">
-              <h2 className="text-lg font-bold">퍼널</h2>
-              <ul className="mt-3 space-y-2 text-sm">
+          <section className="mt-8 grid gap-8 lg:grid-cols-2">
+            <div className="rounded-3xl bg-white p-7 shadow-sm border border-ink/5">
+              <h2 className="text-xl font-bold flex items-center gap-2"><span className="text-2xl">📊</span> 퍼널 전환율</h2>
+              <ul className="mt-5 space-y-3 text-sm">
                 {dashboard.funnel.map((step) => (
-                  <li key={step.key} className="flex justify-between">
-                    <span>{step.stage}</span>
-                    <strong>{step.count}</strong>
+                  <li key={step.key} className="flex items-center justify-between rounded-xl bg-ink/5 px-4 py-3 font-medium">
+                    <span className="text-ink/80">{step.stage}</span>
+                    <strong className="text-ink text-lg">{step.count}건</strong>
                   </li>
                 ))}
+                {dashboard.funnel.length === 0 && <p className="text-ink/50 py-4">퍼널 데이터가 없습니다.</p>}
               </ul>
             </div>
 
-            <div className="rounded-2xl bg-paper p-5 shadow-card">
-              <h2 className="text-lg font-bold">이탈 분석</h2>
-              <ul className="mt-3 space-y-2 text-sm">
+            <div className="rounded-3xl bg-white p-7 shadow-sm border border-ink/5">
+              <h2 className="text-xl font-bold flex items-center gap-2"><span className="text-2xl">📉</span> 이탈 분석</h2>
+              <ul className="mt-5 space-y-3 text-sm">
                 {dashboard.dropOff.map((item, index) => (
-                  <li key={`${item.from}-${index}`}>
-                    {item.from} → {item.to}: {item.lostUsers}명 ({item.rate}%)
+                  <li key={`${item.from}-${index}`} className="flex flex-col gap-1 rounded-xl bg-red-50 px-4 py-3">
+                    <span className="font-bold text-red-900">{item.from} <span className="text-red-400">→</span> {item.to}</span>
+                    <span className="text-red-700">이탈: {item.lostUsers}명 ({item.rate}%)</span>
                   </li>
                 ))}
+                {dashboard.dropOff.length === 0 && <p className="text-ink/50 py-4">이탈 데이터가 없습니다.</p>}
               </ul>
             </div>
           </section>
 
-          <section className="mt-6 rounded-2xl bg-paper p-5 shadow-card">
-            <h2 className="text-lg font-bold">피드백</h2>
+          <section className="mt-8 rounded-3xl bg-white p-7 shadow-sm border border-ink/5">
+            <h2 className="text-xl font-bold flex items-center gap-2"><span className="text-2xl">💌</span> 실시간 피드백 (VOC)</h2>
             {dashboard.feedback.length === 0 ? (
-              <p className="mt-3 text-sm text-ink/70">아직 피드백이 없습니다.</p>
+              <p className="mt-4 rounded-xl bg-ink/5 px-4 py-6 text-center text-sm font-semibold text-ink/50">아직 남겨진 피드백이 없습니다.</p>
             ) : (
-              <ul className="mt-3 space-y-3">
+              <ul className="mt-5 grid gap-4 sm:grid-cols-2">
                 {dashboard.feedback.map((item) => (
-                  <li key={item.id} className="rounded-xl border border-ink/10 bg-white p-3 text-sm">
-                    <p className="font-semibold">{item.sentiment.toUpperCase()}</p>
-                    <p className="mt-1">{item.comment}</p>
-                    <p className="mt-1 text-xs text-ink/60">{new Date(item.createdAt).toLocaleString()}</p>
+                  <li key={item.id} className="flex flex-col justify-between rounded-2xl border border-ink/10 bg-canvas/30 p-5 transition-transform hover:-translate-y-1 hover:shadow-md">
+                    <div>
+                      <span className={`inline-block rounded-full px-2.5 py-1 text-xs font-bold ${item.sentiment === "positive" ? "bg-emerald-100 text-emerald-800" :
+                          item.sentiment === "negative" ? "bg-red-100 text-red-800" :
+                            "bg-gray-100 text-gray-800"
+                        }`}>
+                        {item.sentiment === "positive" ? "긍정적" : item.sentiment === "negative" ? "아쉬움" : "중립적"}
+                      </span>
+                      <p className="mt-3 text-sm font-medium leading-relaxed text-ink">{item.comment}</p>
+                    </div>
+                    <time className="mt-4 text-xs font-semibold text-ink/40">{new Date(item.createdAt).toLocaleString([], { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}</time>
                   </li>
                 ))}
               </ul>
