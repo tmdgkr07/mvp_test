@@ -135,10 +135,10 @@ export default function BuilderDashboard() {
               <span className="mt-3 text-4xl font-black text-orange-900">{dashboard.feedback.length}</span>
               <p className="mt-2 text-xs font-semibold text-orange-600/70">유저의 소중한 의견</p>
             </div>
-            <div className="flex flex-col rounded-3xl bg-purple-50 p-6 shadow-sm border border-purple-100">
-              <span className="text-sm font-bold text-purple-800">🔥 최종 퍼널</span>
-              <span className="mt-3 text-2xl font-black text-purple-900 break-words">{dashboard.funnel.at(-1)?.stage || "-"}</span>
-              <p className="mt-2 text-xs font-semibold text-purple-600/70">전환이 가장 많이 일어난 곳</p>
+            <div className="flex flex-col rounded-3xl bg-indigo-50 p-6 shadow-sm border border-indigo-100">
+              <span className="text-sm font-bold text-indigo-800">🔥 최종 퍼널</span>
+              <span className="mt-3 text-2xl font-black text-indigo-900 break-words">{dashboard.funnel.at(-1)?.stage || "-"}</span>
+              <p className="mt-2 text-xs font-semibold text-indigo-600/70">전환이 가장 많이 일어난 곳</p>
             </div>
           </div>
 

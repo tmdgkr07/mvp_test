@@ -38,16 +38,18 @@ export default function VoteButton({ projectId, initialVotes }: { projectId: str
 
     return (
         <motion.button
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
+            whileHover={{ scale: 1.15 }}
+            whileTap={{ scale: 0.85 }}
             onClick={handleVote}
-            className={`flex items-center gap-2 rounded-full px-4 py-2 transition-all text-sm font-black shadow-sm ${votes > initialVotes
-                ? "bg-accent text-white"
-                : "bg-ink/5 text-ink/60 hover:bg-ink/10"
-                }`}
+            disabled={loading}
+            className={`inline-flex items-center gap-2.5 rounded-full px-4 py-2.5 transition-all text-sm font-black shadow-md hover:shadow-lg border group ${
+                votes > initialVotes
+                    ? "bg-gradient-to-r from-blue-500 to-indigo-500 text-white border-blue-600/50 hover:from-blue-600 hover:to-indigo-600"
+                    : "bg-gradient-to-r from-orange-400 to-yellow-400 text-white border-orange-500/50 hover:from-orange-500 hover:to-yellow-500 hover:-translate-y-0.5"
+            }`}
         >
-            <span className="text-base">🔥</span>
-            <span>{votes}</span>
+            <span className="text-lg group-hover:rotate-12 transition-transform inline-block">🔥</span>
+            <span className="font-bold">{votes}</span>
         </motion.button>
     );
 }

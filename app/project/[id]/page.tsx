@@ -54,75 +54,148 @@ export default async function ProjectDetailPage({ params }: Props) {
   if (!project) notFound();
 
   return (
-    <main className="mx-auto max-w-4xl px-5 py-12">
-      <Link href="/" className="inline-block rounded-full bg-ink/10 px-4 py-2 text-sm font-semibold hover:bg-ink/20">
-        메인 게시판으로
-      </Link>
-
-      <article className="mt-8 flex flex-col gap-10 pb-32">
-        {/* Header Section: Badge, Social stats, Title */}
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            {project.status && STATUS_LABELS[project.status] && (
-              <span className={`inline-flex items-center rounded-full border px-3 py-1.5 text-sm font-bold shadow-sm ${STATUS_LABELS[project.status].color}`}>
-                {STATUS_LABELS[project.status].label}
-              </span>
-            )}
-
-            <div className="flex items-center gap-4 text-sm font-bold text-ink/70">
-              <VoteButton projectId={project.id} initialVotes={project.voteCount || 0} />
-              <span className="flex items-center gap-1.5 rounded-full bg-ink/5 px-3 py-1.5">
-                💬 {project.commentCount || 0}
-              </span>
-            </div>
-          </div>
-
-          <div>
-            <h1 className="text-4xl font-black tracking-tight text-ink sm:text-6xl">{project.name}</h1>
-            <p className="mt-4 text-xl font-medium leading-relaxed text-ink/75 sm:text-2xl">{project.tagline}</p>
-            {project.ownerId && (
-              <div className="mt-6 flex items-center gap-3">
-                <Link href={`/maker/${project.ownerId}`} className="inline-flex items-center gap-2 rounded-xl bg-ink/5 px-4 py-2 text-sm font-bold text-ink transition hover:bg-ink/10">
-                  <span>🧑‍💻 메이커 프로필 보기</span>
-                </Link>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Thumbnail Hero Section */}
-        <div className="relative h-64 w-full overflow-hidden rounded-[2rem] shadow-md sm:h-96">
-          <Image src={project.thumbnailUrl} alt={`${project.name} 썸네일`} fill className="object-cover" sizes="(max-width: 768px) 100vw, 900px" />
-        </div>
-
-        {/* Waitlist Section */}
-        <WaitlistButton projectId={project.id} />
-
-        {/* Markdown Content Section */}
-        {project.detailContent && (
-          <div className="rounded-[2rem] bg-white px-6 py-10 shadow-sm sm:px-12 border border-ink/5">
-            <MarkdownRenderer content={project.detailContent} />
-          </div>
-        )}
-
-        <div className="rounded-2xl border border-ink/10 bg-canvas/70 p-4 text-center text-sm text-ink/80">
-          SEO/공유를 위해 고유 URL을 사용합니다.<br className="sm:hidden" /> <strong className="ml-2">/project/{project.id}</strong>
-        </div>
-      </article>
-
-      {/* Sticky Bottom Actions */}
-      <div className="fixed bottom-6 left-0 right-0 z-40 px-5">
-        <div className="mx-auto flex max-w-4xl flex-col gap-3 sm:flex-row rounded-3xl bg-white/70 p-4 shadow-2xl backdrop-blur-xl border border-ink/10">
-          <a href={project.websiteUrl} target="_blank" rel="noreferrer noopener" className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-ink px-6 py-4 text-center text-lg font-bold text-white shadow-md transition hover:-translate-y-0.5 hover:bg-ink/90">
-            앱 둘러보기 🚀
-          </a>
-          <a href={project.supportUrl} target="_blank" rel="noreferrer noopener" className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-support px-6 py-4 text-center text-lg font-bold text-white shadow-md transition hover:-translate-y-0.5 hover:bg-support/90 sm:flex-none sm:w-1/3">
-            후원하기 ☕
-          </a>
-        </div>
+    <main className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50">
+      {/* Background Decoration */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-blue-200/30 to-indigo-200/30 rounded-full blur-3xl"></div>
+        <div className="absolute bottom-20 left-0 w-80 h-80 bg-gradient-to-tr from-slate-200/20 to-blue-200/20 rounded-full blur-3xl"></div>
       </div>
 
-      <ProjectDetailClient project={project} />
+      {/* Content */}
+      <div className="relative z-10">
+        <div className="mx-auto max-w-5xl px-5 py-8 md:py-12">
+          {/* Back Button */}
+          <Link 
+            href="/" 
+            className="inline-flex items-center gap-2 group mb-8 px-4 py-2.5 rounded-full bg-white/60 hover:bg-white backdrop-blur-md border border-slate-200/50 hover:border-slate-300 transition-all shadow-sm hover:shadow-md"
+          >
+            <span className="group-hover:-translate-x-1 transition-transform">←</span>
+            <span className="text-sm font-semibold text-slate-700">게시판으로 돌아가기</span>
+          </Link>
+
+          {/* Edit Controls */}
+          <div className="mb-8">
+            <ProjectDetailClient project={project} />
+          </div>
+
+          <article className="flex flex-col gap-12 pb-40">
+            {/* ===== Header Section ===== */}
+            <div className="space-y-6">
+              {/* Status & Stats Row */}
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div className="flex items-center gap-3 flex-wrap">
+                  {project.status && STATUS_LABELS[project.status] && (
+                    <span className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-xs font-bold shadow-sm transition-all ${STATUS_LABELS[project.status].color}`}>
+                      <span className="w-2 h-2 rounded-full bg-current opacity-60"></span>
+                      {STATUS_LABELS[project.status].label}
+                    </span>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <VoteButton projectId={project.id} initialVotes={project.voteCount || 0} />
+                  <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-white/60 backdrop-blur-sm border border-slate-200/50 text-sm font-semibold text-slate-700 shadow-sm">
+                    <span>💬</span>
+                    <span>{project.commentCount || 0}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Title Section */}
+              <div className="space-y-3">
+                <h1 className="text-5xl md:text-6xl lg:text-7xl font-black tracking-tight bg-gradient-to-r from-slate-900 via-purple-900 to-slate-900 bg-clip-text text-transparent">
+                  {project.name}
+                </h1>
+                <p className="text-xl md:text-2xl font-semibold leading-relaxed text-slate-600 max-w-2xl">
+                  {project.tagline}
+                </p>
+
+                {/* Maker Profile Link */}
+                {project.ownerId && (
+                  <Link 
+                    href={`/maker/${project.ownerId}`} 
+                    className="inline-flex items-center gap-3 mt-6 group px-6 py-3 rounded-2xl bg-gradient-to-r from-purple-500/10 to-pink-500/10 hover:from-purple-500/20 hover:to-pink-500/20 border border-purple-200/50 hover:border-purple-300/50 transition-all shadow-sm hover:shadow-md"
+                  >
+                    <span className="group-hover:scale-110 transition-transform text-lg">🧑‍💻</span>
+                    <span className="font-semibold text-slate-700">메이커 프로필 보기</span>
+                    <span className="group-hover:translate-x-1 transition-transform text-slate-400">→</span>
+                  </Link>
+                )}
+              </div>
+            </div>
+
+            {/* ===== Hero Image Section ===== */}
+            <div className="relative group overflow-hidden rounded-3xl shadow-2xl border border-white/50">
+              <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent z-10"></div>
+              <div className="relative h-72 md:h-96 lg:h-[500px] w-full overflow-hidden">
+                <Image 
+                  src={project.thumbnailUrl} 
+                  alt={`${project.name} 썸네일`} 
+                  fill 
+                  className="object-cover group-hover:scale-105 transition-transform duration-500" 
+                  sizes="(max-width: 768px) 100vw, 1280px" 
+                  priority
+                />
+              </div>
+              {/* Shine Effect */}
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent group-hover:translate-x-full transition-transform duration-1000 z-20"></div>
+            </div>
+
+            {/* ===== Waitlist & CTA Section ===== */}
+            <div className="rounded-3xl bg-gradient-to-br from-white to-slate-50 border border-slate-200/60 p-8 shadow-lg">
+              <WaitlistButton projectId={project.id} />
+            </div>
+
+            {/* ===== Content Section ===== */}
+            {project.detailContent && (
+              <div className="rounded-3xl bg-white/70 backdrop-blur-sm px-8 md:px-12 py-12 border border-slate-200/50 shadow-lg prose prose-slate max-w-none
+                prose-headings:font-black prose-headings:text-slate-900
+                prose-p:text-slate-700 prose-p:leading-relaxed
+                prose-a:text-purple-600 hover:prose-a:text-purple-700
+                prose-strong:text-slate-900 prose-strong:font-bold
+                prose-code:bg-slate-100 prose-code:text-slate-900 prose-code:rounded prose-code:px-2 prose-code:py-1
+                prose-pre:bg-slate-900 prose-pre:text-slate-100
+              ">
+                <MarkdownRenderer content={project.detailContent} />
+              </div>
+            )}
+
+            {/* ===== URL Info Section ===== */}
+            <div className="rounded-2xl bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200/50 p-6 text-center">
+              <p className="text-sm font-medium text-slate-700">
+                🔗 SEO 최적화를 위해 고유 URL을 사용합니다
+              </p>
+              <p className="mt-2 font-mono text-xs md:text-sm font-bold text-slate-600 bg-white/50 rounded-lg px-4 py-2 inline-block border border-slate-200/50">
+                /project/{project.id}
+              </p>
+            </div>
+          </article>
+        </div>
+
+        {/* Sticky Bottom CTA */}
+        <div className="fixed bottom-0 left-0 right-0 z-40 bg-gradient-to-t from-white via-white to-white/0 px-5 pt-6 pb-8">
+          <div className="mx-auto max-w-5xl flex flex-col sm:flex-row gap-3">
+            <a 
+              href={project.websiteUrl} 
+              target="_blank" 
+              rel="noreferrer noopener" 
+              className="flex-1 flex items-center justify-center gap-2 px-8 py-4 rounded-2xl font-bold text-lg text-white bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 shadow-xl hover:shadow-2xl transition-all hover:-translate-y-1 group border border-purple-500/50"
+            >
+              <span>앱 둘러보기</span>
+              <span className="group-hover:translate-x-1 transition-transform text-xl">🚀</span>
+            </a>
+            <a 
+              href={project.supportUrl} 
+              target="_blank" 
+              rel="noreferrer noopener" 
+              className="flex flex-1 sm:flex-none sm:w-48 items-center justify-center gap-2 px-8 py-4 rounded-2xl font-bold text-lg text-white bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 shadow-xl hover:shadow-2xl transition-all hover:-translate-y-1 group border border-amber-500/50"
+            >
+              <span>후원하기</span>
+              <span className="group-hover:scale-110 transition-transform text-xl">☕</span>
+            </a>
+          </div>
+        </div>
+      </div>
     </main>
   );
 }

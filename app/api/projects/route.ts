@@ -32,15 +32,15 @@ export async function POST(request: Request) {
   }
 
   if (!body.websiteUrl?.trim() || !isValidUrl(body.websiteUrl)) {
-    return fail("INVALID_INPUT", "올바른 프로젝트 URL을 입력해주세요.");
+    return fail("INVALID_INPUT", "잘못 입력했습니다. 올바른 프로젝트 URL (https://...) 을 입력해주세요.");
   }
 
   if (!body.supportUrl?.trim() || !isValidUrl(body.supportUrl)) {
-    return fail("INVALID_INPUT", "올바른 후원 URL을 입력해주세요.");
+    return fail("INVALID_INPUT", "잘못 입력했습니다. 올바른 후원 URL (https://...) 을 입력해주세요.");
   }
 
   if (body.thumbnailUrl?.trim() && !isValidUrl(body.thumbnailUrl)) {
-    return fail("INVALID_INPUT", "썸네일 URL 형식이 올바르지 않습니다.");
+    return fail("INVALID_INPUT", "잘못 입력했습니다. 올바른 썸네일 URL (https://...) 을 입력해주세요.");
   }
 
   const project = await createProject(
