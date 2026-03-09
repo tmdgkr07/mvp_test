@@ -49,8 +49,8 @@ export default function ProjectDetailClient({ project }: { project: Project }) {
   }
 
   return (
-    <section className="mt-8">
-      <div className="flex gap-2">
+    <section className="relative z-50 w-full mb-6">
+      <div className="flex justify-end gap-2">
         {!editing ? (
           <button
             type="button"

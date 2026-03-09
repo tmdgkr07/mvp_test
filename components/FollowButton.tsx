@@ -22,7 +22,8 @@ export default function FollowButton({
     // If viewing own profile, hide follow interaction
     if (session?.user?.id === targetUserId) {
         return (
-            <div className="rounded-full bg-ink/5 px-4 py-2 text-sm font-bold text-ink/70">
+            <div className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-gradient-to-r from-slate-500/10 to-slate-500/5 border border-slate-300/50 text-sm font-bold text-slate-700">
+                <span className="text-lg">👤</span>
                 내 프로필 (팔로워 {count}명)
             </div>
         );
@@ -60,12 +61,17 @@ export default function FollowButton({
         <button
             onClick={handleFollow}
             disabled={loading}
-            className={`rounded-full px-5 py-2.5 text-sm font-bold transition-all ${isFollowing
-                    ? "border border-ink/20 bg-white text-ink hover:bg-red-50 hover:text-red-600 hover:border-red-200"
-                    : "bg-ink text-white shadow-md hover:scale-105"
-                } disabled:opacity-50`}
+            className={`inline-flex items-center gap-2 rounded-full px-6 py-3 text-sm font-bold transition-all duration-300 shadow-md hover:shadow-lg disabled:opacity-50 group ${
+                isFollowing
+                    ? "bg-gradient-to-r from-slate-500 to-slate-600 text-white border border-slate-700/50 hover:from-slate-600 hover:to-slate-700"
+                    : "bg-gradient-to-r from-blue-600 to-indigo-600 text-white border border-blue-700/50 hover:from-blue-700 hover:to-indigo-700 hover:-translate-y-0.5"
+            }`}
         >
-            {isFollowing ? `✓ 팔로잉 (${count})` : `+ 팔로우 (${count})`}
+            <span className={`text-lg transition-transform ${isFollowing ? 'group-hover:scale-110' : 'group-hover:scale-125'}`}>
+                {isFollowing ? '✓' : '❤️'}
+            </span>
+            <span>{isFollowing ? "팔로우 취소" : "팔로우"}</span>
+            <span className="text-xs opacity-80 font-semibold">({count})</span>
         </button>
     );
 }

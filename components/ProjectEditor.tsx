@@ -22,9 +22,13 @@ export default function ProjectEditor({ project }: { project: Project }) {
     supportUrl: project.supportUrl,
     thumbnailUrl: project.thumbnailUrl,
     status: project.status,
-    problemState: "",
-    solutionState: "",
-    featureList: "",
+    hookHeadline: "",
+    hookSubtext: "",
+    painPoints: "",
+    solutionHeadline: "",
+    features: "",
+    howItWorks: "",
+    beforeAfter: "",
     socialProof: ""
   });
   const [tab, setTab] = useState<EditorTab>("write");
@@ -50,22 +54,32 @@ export default function ProjectEditor({ project }: { project: Project }) {
     setMessage(null);
 
     let finalDetailContent = form.detailContent;
-    if (form.problemState || form.solutionState || form.featureList || form.socialProof) {
+    if (form.hookHeadline || form.painPoints || form.solutionHeadline || form.features || form.howItWorks || form.beforeAfter || form.socialProof) {
       finalDetailContent = `
-## 이런 문제, 겪고 계시나요?
-${form.problemState.trim() || "(내용 없음)"}
+# ${form.hookHeadline.trim() || form.name}
+> ${form.hookSubtext.trim() || form.tagline}
 
 ---
 
-## 우리의 솔루션
-${form.solutionState.trim() || "(내용 없음)"}
+## 🚨 Pain Points (이런 점이 불편하지 않으셨나요?)
+${form.painPoints.trim() || "(내용 없음)"}
 
 ---
 
-## 핵심 기능
-${form.featureList.trim() || "(내용 없음)"}
+## 💡 ${form.solutionHeadline.trim() || "우리의 핵심 솔루션"}
+${form.features.trim() || "(내용 없음)"}
 
-${form.socialProof.trim() ? `\n---\n\n## 검증 결과 및 사용자 후기 (Social Proof)\n${form.socialProof.trim()}` : ""}
+---
+
+## ⚙️ How it Works (이렇게 작동합니다)
+${form.howItWorks.trim() || "(내용 없음)"}
+
+---
+
+## 🔄 기존 방식 vs 우리 서비스
+${form.beforeAfter.trim() || "(내용 없음)"}
+
+${form.socialProof.trim() ? `\n---\n\n## 💬 Social Proof (사용자 후기 및 기대 반응)\n${form.socialProof.trim()}` : ""}
       `.trim();
     }
 
@@ -89,9 +103,13 @@ ${form.socialProof.trim() ? `\n---\n\n## 검증 결과 및 사용자 후기 (Soc
         supportUrl: payload.data.project.supportUrl,
         thumbnailUrl: payload.data.project.thumbnailUrl,
         status: payload.data.project.status,
-        problemState: "",
-        solutionState: "",
-        featureList: "",
+        hookHeadline: "",
+        hookSubtext: "",
+        painPoints: "",
+        solutionHeadline: "",
+        features: "",
+        howItWorks: "",
+        beforeAfter: "",
         socialProof: ""
       });
       setMessage("프로젝트 정보가 수정되었습니다.");
@@ -178,38 +196,74 @@ ${form.socialProof.trim() ? `\n---\n\n## 검증 결과 및 사용자 후기 (Soc
 
           <div className="space-y-4">
             <label className="block">
-              <span className="text-sm font-bold text-ink hover:text-support">1. 문제 정의</span>
+              <span className="text-sm font-bold text-ink hover:text-support">1. Hook (헤드라인)</span>
+              <div className="mt-1.5 space-y-2">
+                <input
+                  value={form.hookHeadline}
+                  onChange={(event) => updateField("hookHeadline", event.target.value)}
+                  className="w-full rounded-xl border border-ink/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-support"
+                  placeholder="관심을 끌 메인 헤드라인"
+                />
+                <input
+                  value={form.hookSubtext}
+                  onChange={(event) => updateField("hookSubtext", event.target.value)}
+                  className="w-full rounded-xl border border-ink/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-support"
+                  placeholder="서브텍스트 설명"
+                />
+              </div>
+            </label>
+
+            <label className="block">
+              <span className="text-sm font-bold text-ink hover:text-support">2. Pain Points (문제점)</span>
               <textarea
-                value={form.problemState}
-                onChange={(event) => updateField("problemState", event.target.value)}
+                value={form.painPoints}
+                onChange={(event) => updateField("painPoints", event.target.value)}
+                className="mt-1.5 h-16 w-full rounded-xl border border-ink/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-support"
+              />
+            </label>
+
+            <label className="block">
+              <span className="text-sm font-bold text-ink hover:text-support">3. Solution (솔루션과 기능)</span>
+              <div className="mt-1.5 space-y-2">
+                <input
+                  value={form.solutionHeadline}
+                  onChange={(event) => updateField("solutionHeadline", event.target.value)}
+                  className="w-full rounded-xl border border-ink/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-support"
+                  placeholder="솔루션 핵심 헤드라인"
+                />
+                <textarea
+                  value={form.features}
+                  onChange={(event) => updateField("features", event.target.value)}
+                  className="h-20 w-full rounded-xl border border-ink/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-support"
+                  placeholder="주요 기능 설명"
+                />
+              </div>
+            </label>
+
+            <label className="block">
+              <span className="text-sm font-bold text-ink hover:text-support">4. How it Works (작동 방식)</span>
+              <textarea
+                value={form.howItWorks}
+                onChange={(event) => updateField("howItWorks", event.target.value)}
                 className="mt-1.5 h-20 w-full rounded-xl border border-ink/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-support"
               />
             </label>
 
             <label className="block">
-              <span className="text-sm font-bold text-ink hover:text-support">2. 솔루션 소개</span>
+              <span className="text-sm font-bold text-ink hover:text-support">5. Before & After</span>
               <textarea
-                value={form.solutionState}
-                onChange={(event) => updateField("solutionState", event.target.value)}
-                className="mt-1.5 h-20 w-full rounded-xl border border-ink/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-support"
+                value={form.beforeAfter}
+                onChange={(event) => updateField("beforeAfter", event.target.value)}
+                className="mt-1.5 h-16 w-full rounded-xl border border-ink/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-support"
               />
             </label>
 
             <label className="block">
-              <span className="text-sm font-bold text-ink hover:text-support">3. 핵심 기능 설명</span>
-              <textarea
-                value={form.featureList}
-                onChange={(event) => updateField("featureList", event.target.value)}
-                className="mt-1.5 h-24 w-full rounded-xl border border-ink/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-support"
-              />
-            </label>
-
-            <label className="block">
-              <span className="text-sm font-bold text-ink hover:text-support">4. 검증 결과 (선택)</span>
+              <span className="text-sm font-bold text-ink hover:text-support">6. Social Proof (후기)</span>
               <textarea
                 value={form.socialProof}
                 onChange={(event) => updateField("socialProof", event.target.value)}
-                className="mt-1.5 h-20 w-full rounded-xl border border-ink/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-support"
+                className="mt-1.5 h-16 w-full rounded-xl border border-ink/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-support"
               />
             </label>
           </div>
@@ -217,17 +271,32 @@ ${form.socialProof.trim() ? `\n---\n\n## 검증 결과 및 사용자 후기 (Soc
 
         <label className="block mt-6">
           <span className="text-sm font-semibold text-ink">프로젝트 URL</span>
-          <input value={form.websiteUrl} onChange={(e) => updateField("websiteUrl", e.target.value)} className="mt-1.5 w-full rounded-xl border border-ink/20 bg-white px-3 py-2.5 text-sm" />
+          <input type="text" value={form.websiteUrl} onChange={(e) => updateField("websiteUrl", e.target.value)} className="mt-1.5 w-full rounded-xl border border-ink/20 bg-white px-3 py-2.5 text-sm" />
         </label>
 
         <label className="block">
           <span className="text-sm font-semibold text-ink">후원 URL</span>
-          <input value={form.supportUrl} onChange={(e) => updateField("supportUrl", e.target.value)} className="mt-1.5 w-full rounded-xl border border-ink/20 bg-white px-3 py-2.5 text-sm" />
+          <input type="text" value={form.supportUrl} onChange={(e) => updateField("supportUrl", e.target.value)} className="mt-1.5 w-full rounded-xl border border-ink/20 bg-white px-3 py-2.5 text-sm" />
         </label>
 
         <label className="block">
           <span className="text-sm font-semibold text-ink">썸네일 URL</span>
-          <input value={form.thumbnailUrl} onChange={(e) => updateField("thumbnailUrl", e.target.value)} className="mt-1.5 w-full rounded-xl border border-ink/20 bg-white px-3 py-2.5 text-sm" />
+          <input type="text" value={form.thumbnailUrl} onChange={(e) => updateField("thumbnailUrl", e.target.value)} className="mt-1.5 w-full rounded-xl border border-ink/20 bg-white px-3 py-2.5 text-sm" />
+          <details className="mt-2 text-xs text-ink/70">
+            <summary className="cursor-pointer font-bold hover:text-ink">URL 제작 요령 (클릭하여 열기)</summary>
+            <div className="mt-2 space-y-1 pl-2">
+              <p>썸네일 URL에는 반드시 <strong>`.png`, `.jpg`, `.jpeg` 등 확장자로 끝나는 순수 이미지 직접 주소(Direct Link)</strong>만 들어가야 합니다. 앨범이나 웹페이지 주소는 안 됩니다!</p>
+              <div className="mt-1">
+                <span className="font-semibold text-ink">🛠️ 무료로 만드는 방법:</span>
+                <ul className="list-inside list-disc">
+                  <li><a href="https://imgur.com/" target="_blank" rel="noopener noreferrer" className="text-support underline">Imgur</a> 혹은 원하시는 이미지 호스팅 사이트에 이미지를 업로드하세요.</li>
+                  <li>업로드된 이미지 위에서 <strong>오른쪽 마우스 클릭</strong>을 하세요.</li>
+                  <li><strong>'이미지 주소 복사(Copy image address)'</strong>를 누른 후 여기에 붙여넣으세요.</li>
+                  <li className="text-red-500">주의: 구글 드라이브나 노션 링크는 보안 문제로 썸네일로 보이지 않습니다!</li>
+                </ul>
+              </div>
+            </div>
+          </details>
         </label>
       </div>
 
