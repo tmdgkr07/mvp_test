@@ -4,8 +4,8 @@ import { listProjects } from "@/lib/data-store";
 import Navbar from "@/components/Navbar";
 
 export const metadata: Metadata = {
-  title: "서비스 탐색 | MINI-TIPS",
-  description: "MINI-TIPS에 등록된 서비스를 탐색하고, 빌더에게 후원과 피드백을 전달하세요."
+  title: "서비스 탐색 | 밥주세요",
+  description: "밥주세요에 등록된 서비스를 탐색하고, 빌더에게 후원과 피드백을 전달하세요."
 };
 
 export const dynamic = "force-dynamic";
@@ -30,7 +30,7 @@ export default async function ExplorePage() {
       <footer className="border-t border-slate-200 bg-white py-10">
         <div className="text-center">
           <p className="text-sm text-slate-400">
-            &copy; {new Date().getFullYear()} MINI-TIPS. Team 유쾌한청년들.
+            &copy; {new Date().getFullYear()} 밥주세요. Team 유쾌한청년들.
           </p>
         </div>
       </footer>

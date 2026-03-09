@@ -5,7 +5,7 @@ import Hero from "@/components/Hero";
 import { ArrowRight } from "lucide-react";
 
 export const metadata: Metadata = {
-  title: "MINI-TIPS | 후원과 피드백으로 검증이 남는 구조",
+  title: "밥주세요 | 후원과 피드백으로 검증이 남는 구조",
   description: "AI 시대 1인 빌더를 위한 서비스 검증 인프라 플랫폼. 후원, 피드백, 데이터로 작은 서비스를 검증 가능한 도전으로 바꿉니다."
 };
 
@@ -42,7 +42,7 @@ export default function HomePage() {
           </div>
 
           <p className="mt-10 text-center text-sm text-slate-500">
-            💡 MINI-TIPS는 결과 화면에서 바로 후원과 피드백을 받아<br />
+            💡 밥주세요는 결과 화면에서 바로 후원과 피드백을 받아<br />
             <span className="font-semibold text-slate-700">검증 데이터와 초기 수익을 동시에 만드는 구조</span>를 제공합니다.
           </p>
         </div>
@@ -61,7 +61,7 @@ export default function HomePage() {
               <div className="flex-shrink-0 flex h-10 w-10 items-center justify-center rounded-full bg-yellow-400 text-slate-900 font-black text-sm">1</div>
               <div>
                 <p className="text-xs font-bold text-yellow-500 uppercase tracking-widest mb-1">STEP 1</p>
-                <p className="text-xl font-black text-slate-900 mb-2">서비스를 MINI-TIPS에 등록하세요</p>
+                <p className="text-xl font-black text-slate-900 mb-2">서비스를 밥주세요에 등록하세요</p>
                 <p className="text-sm text-slate-500 leading-relaxed">
                   URL 하나로 서비스를 등록하고, 스크립트 한 줄을 결과 화면에 붙입니다.<br />
                   후원 버튼과 피드백 폼이 자동으로 임베드됩니다.
@@ -165,7 +165,7 @@ export default function HomePage() {
         <div className="mx-auto max-w-7xl px-6 sm:px-10">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-10 mb-10">
             <div>
-              <h3 className="font-black text-slate-900 mb-2">MINI-TIPS</h3>
+              <h3 className="font-black text-slate-900 mb-2">밥주세요</h3>
               <p className="text-sm text-slate-500">후원과 피드백으로 검증이 남는 구조를 만듭니다.<br />작은 서비스를 검증 가능한 도전으로 바꿉니다.</p>
             </div>
             <div>
@@ -187,7 +187,7 @@ export default function HomePage() {
 
           <div className="border-t border-slate-100 pt-8 text-center">
             <p className="text-sm text-slate-400">
-              &copy; {new Date().getFullYear()} MINI-TIPS. Team 유쾌한청년들.
+              &copy; {new Date().getFullYear()} 밥주세요. Team 유쾌한청년들.
             </p>
           </div>
         </div>

@@ -30,7 +30,7 @@ export default function Navbar() {
                         <Zap className="h-5 w-5 fill-slate-900 text-slate-900" />
                     </div>
                     <span className="text-xl font-black tracking-tight text-slate-900 hidden sm:inline-block">
-                        MINI<span className="text-yellow-500">-TIPS</span>
+                        밥<span className="text-yellow-500">주세요</span>
                     </span>
                 </Link>
 
