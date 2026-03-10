@@ -1,8 +1,19 @@
 ﻿"use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useEffect, useState } from "react";
 import type { Feedback, Project } from "@/lib/types";
+
+const STATUS_LABELS: Record<string, { label: string; color: string }> = {
+  IDEA: { label: "아이디어", color: "bg-gray-100 text-gray-700" },
+  VALIDATING: { label: "검증 중", color: "bg-blue-50 text-blue-700" },
+  DEVELOPING: { label: "개발 중", color: "bg-orange-50 text-orange-700" },
+  RELEASED: { label: "출시 완료", color: "bg-emerald-50 text-emerald-700" },
+  GROWING: { label: "성장 중", color: "bg-indigo-50 text-indigo-700" },
+  PAUSED: { label: "일시 중단", color: "bg-red-50 text-red-700" },
+  PIVOTED: { label: "피봇", color: "bg-yellow-50 text-yellow-800" }
+};
 
 type DashboardPayload = {
   funnel: Array<{ stage: string; key: string; count: number }>;
@@ -85,39 +96,98 @@ export default function BuilderDashboard() {
     <main className="mx-auto max-w-6xl px-5 py-10 sm:py-12">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-black text-ink">빌더 대시보드</h1>
-          <p className="mt-2 text-sm text-ink/70">프로젝트별 유입, 전환, 피드백 지표를 확인하세요.</p>
+          <h1 className="text-3xl font-black text-slate-900">마이페이지</h1>
+          <p className="mt-2 text-sm text-slate-500">내 MVP 목록과 데이터를 확인하세요.</p>
         </div>
-        <Link href="/" className="rounded-full border border-ink/20 px-4 py-2 text-sm font-semibold hover:bg-ink/5">
-          메인으로
+        <Link href="/register" className="rounded-2xl bg-yellow-400 hover:bg-yellow-500 px-5 py-2.5 text-sm font-bold text-slate-900 transition-all">
+          + 서비스 등록
         </Link>
       </div>
 
-      {loading && <p className="mt-6 rounded-xl bg-paper px-4 py-3 text-sm text-ink/70">데이터를 불러오는 중입니다...</p>}
+      {loading && <p className="mt-6 rounded-xl bg-slate-50 px-4 py-3 text-sm text-slate-500">불러오는 중...</p>}
       {error && <p className="mt-6 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>}
 
       {!loading && !error && (
         <>
-          <div className="mt-6 rounded-2xl bg-paper p-5 shadow-card">
-            <label className="block text-sm font-semibold text-ink">프로젝트 선택</label>
-            <select
-              value={selectedProjectId}
-              onChange={(event) => setSelectedProjectId(event.target.value)}
-              className="mt-2 w-full rounded-xl border border-ink/15 bg-white px-3 py-2.5 text-sm"
-            >
-              {projects.map((project) => (
-                <option key={project.id} value={project.id}>
-                  {project.name}
-                </option>
-              ))}
-            </select>
+          {/* 내 MVP 목록 */}
+          <section className="mt-8">
+            <h2 className="text-lg font-black text-slate-900 mb-4">내 MVP 목록</h2>
 
-            {selectedProject && (
-              <p className="mt-3 text-xs text-ink/70">
-                상세 페이지: <Link className="underline" href={`/project/${selectedProject.id}`}>/project/{selectedProject.id}</Link>
-              </p>
+            {projects.length === 0 ? (
+              <div className="rounded-2xl border-2 border-dashed border-slate-200 py-16 text-center">
+                <p className="text-slate-400 font-semibold">아직 등록한 서비스가 없습니다.</p>
+                <Link href="/register" className="mt-4 inline-block rounded-2xl bg-yellow-400 px-6 py-2.5 text-sm font-bold text-slate-900">
+                  첫 서비스 등록하기
+                </Link>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                {projects.map((project) => (
+                  <div
+                    key={project.id}
+                    onClick={() => setSelectedProjectId(project.id)}
+                    className={`cursor-pointer rounded-2xl border-2 bg-white overflow-hidden transition-all hover:-translate-y-1 hover:shadow-lg ${
+                      selectedProjectId === project.id ? "border-yellow-400 shadow-md" : "border-slate-200"
+                    }`}
+                  >
+                    <div className="relative h-40 w-full bg-slate-100">
+                      <Image
+                        src={project.thumbnailUrl}
+                        alt={project.name}
+                        fill
+                        className="object-cover"
+                      />
+                      {selectedProjectId === project.id && (
+                        <div className="absolute top-3 right-3 bg-yellow-400 text-slate-900 text-xs font-black px-2.5 py-1 rounded-full">
+                          선택됨
+                        </div>
+                      )}
+                    </div>
+                    <div className="p-4">
+                      <div className="flex items-center justify-between mb-2">
+                        {project.status && STATUS_LABELS[project.status] && (
+                          <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${STATUS_LABELS[project.status].color}`}>
+                            {STATUS_LABELS[project.status].label}
+                          </span>
+                        )}
+                        <span className="text-xs text-slate-400">🔥 {project.voteCount}</span>
+                      </div>
+                      <p className="font-black text-slate-900 line-clamp-1">{project.name}</p>
+                      <p className="text-xs text-slate-500 mt-1 line-clamp-1">{project.tagline}</p>
+                      <div className="mt-3 flex gap-2">
+                        <Link
+                          href={`/project/${project.id}`}
+                          onClick={(e) => e.stopPropagation()}
+                          className="flex-1 text-center rounded-xl border border-slate-200 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50"
+                        >
+                          상세 보기
+                        </Link>
+                        <a
+                          href={project.websiteUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          className="flex-1 text-center rounded-xl bg-slate-900 py-1.5 text-xs font-bold text-white hover:bg-slate-700"
+                        >
+                          사이트 열기
+                        </a>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
             )}
-          </div>
+          </section>
+
+          {/* 선택된 프로젝트 분석 */}
+          {selectedProjectId && (
+            <section className="mt-12">
+              <h2 className="text-lg font-black text-slate-900 mb-1">
+                {selectedProject?.name} 분석
+              </h2>
+              <p className="text-sm text-slate-400 mb-6">카드를 클릭하면 해당 서비스 데이터로 전환됩니다.</p>
+            </section>
+          )}
 
           <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
             <div className="flex flex-col rounded-3xl bg-blue-50 p-6 shadow-sm border border-blue-100">
