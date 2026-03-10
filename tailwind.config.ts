@@ -5,35 +5,28 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        canvas: "#F9F7F2",
-        ink: "#11222E",
-        accent: "#E16A2F",
+        canvas: "#FFFFFF",
+        "canvas-soft": "#F9F7F3",
+        ink: "#1A1A1A",
+        "ink-light": "#6B6B6B",
+        accent: "#FFDD00",
+        "accent-dark": "#E5C700",
+        brand: "#29ABE0",
         support: "#0C6A6D",
-        paper: "#FFFFFF"
+        paper: "#FFFFFF",
+        border: "#EBEBEB"
       },
       boxShadow: {
-        card: "0 10px 30px -10px rgba(17, 34, 46, 0.1), 0 4px 10px -5px rgba(17, 34, 46, 0.05)",
-        premium: "0 20px 50px -12px rgba(17, 34, 46, 0.15)",
-        glass: "0 8px 32px 0 rgba(17, 34, 46, 0.08)"
+        card: "0 2px 16px 0 rgba(0,0,0,0.06)",
+        "card-hover": "0 8px 40px 0 rgba(0,0,0,0.12)",
+        glass: "0 8px 32px 0 rgba(0,0,0,0.06)",
+        btn: "0 2px 8px 0 rgba(0,0,0,0.10)"
       },
-      animation: {
-        "fade-in": "fade-in 0.5s ease-out forwards",
-        "slide-up": "slide-up 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards",
-        "float": "float 6s ease-in-out infinite"
+      borderRadius: {
+        "4xl": "2rem"
       },
-      keyframes: {
-        "fade-in": {
-          "0%": { opacity: "0" },
-          "100%": { opacity: "1" }
-        },
-        "slide-up": {
-          "0%": { opacity: "0", transform: "translateY(20px)" },
-          "100%": { opacity: "1", transform: "translateY(0)" }
-        },
-        "float": {
-          "0%, 100%": { transform: "translateY(0)" },
-          "50%": { transform: "translateY(-10px)" }
-        }
+      fontFamily: {
+        sans: ["var(--font-manrope)", "var(--font-noto-sans-kr)", "sans-serif"]
       }
     }
   },

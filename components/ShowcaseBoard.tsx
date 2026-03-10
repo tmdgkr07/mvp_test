@@ -236,83 +236,76 @@ export default function ShowcaseBoard({ initialProjects }: { initialProjects: Pr
 
   return (
     <>
-      {/* Header moved to page.tsx for better visibility control */}
-
       {/* Project of the Week Banner */}
       {featuredProject && (
-        <div className="mt-8 overflow-hidden rounded-3xl bg-gradient-to-br from-blue-100 via-indigo-50 to-slate-50 border-2 border-blue-200/50 p-1 shadow-2xl">
-          <div className="flex flex-col md:flex-row items-center gap-8 p-8 sm:p-12">
-            <div className="flex-1 space-y-5">
-              <div className="flex items-center gap-3">
-                <span className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-yellow-300 to-orange-400 text-xl shadow-lg">🏆</span>
-                <span className="text-sm font-black tracking-widest text-blue-700 uppercase">
-                  {featuredProject.ownerId === session?.user?.id ? "🎯 My Featured Project" : "⭐ Project of the Week"}
+        <div className="mt-8 overflow-hidden rounded-3xl bg-[#FFF9C4] border border-[#FFE066] shadow-card">
+          <div className="flex flex-col md:flex-row items-center gap-6 p-8 sm:p-10">
+            <div className="flex-1 space-y-4">
+              <div className="flex items-center gap-2">
+                <span className="text-xl">🏆</span>
+                <span className="text-xs font-black tracking-widest text-[#8B6914] uppercase">
+                  {featuredProject.ownerId === session?.user?.id ? "My Featured Project" : "Project of the Week"}
                 </span>
               </div>
               <div>
-                <h2 className="text-4xl md:text-5xl font-black bg-gradient-to-r from-blue-900 to-indigo-900 bg-clip-text text-transparent">
+                <h2 className="text-3xl md:text-4xl font-black text-ink">
                   {featuredProject.name}
                 </h2>
-                <p className="mt-3 text-lg font-semibold leading-relaxed text-slate-700">
+                <p className="mt-2 text-base font-medium leading-relaxed text-ink-light">
                   {featuredProject.tagline}
                 </p>
               </div>
               <Link
                 href={`/project/${featuredProject.id}`}
-                className="group inline-flex items-center gap-3 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 px-8 py-4 text-lg font-bold text-white shadow-xl hover:shadow-2xl transition-all hover:-translate-y-1 border border-blue-700/50"
+                className="inline-flex items-center gap-2 rounded-full bg-ink hover:bg-ink/90 px-6 py-3 text-sm font-bold text-white transition-all hover:-translate-y-0.5 shadow-btn"
               >
-                {featuredProject.ownerId === session?.user?.id ? "내 프로젝트 보러가기" : "이번 주 1위 프로젝트 보러가기"}
-                <ExternalLink className="h-5 w-5 transition-transform group-hover:translate-x-2" />
+                {featuredProject.ownerId === session?.user?.id ? "내 프로젝트 보러가기" : "이번 주 1위 보러가기"}
+                <ExternalLink className="h-4 w-4" />
               </Link>
             </div>
-            <div className="relative h-56 w-full md:w-96 overflow-hidden rounded-3xl shadow-2xl border-4 border-white">
+            <div className="relative h-48 w-full md:w-80 overflow-hidden rounded-2xl shadow-card border border-[#FFE066]/50">
               <Image
                 src={featuredProject.thumbnailUrl}
-                alt={`${featuredProject.ownerId === session?.user?.id ? "My Project" : "Weekly Top Project"} Thumbnail`}
+                alt={`${featuredProject.name} Thumbnail`}
                 fill
-                className="object-cover group-hover:scale-110 transition-transform duration-500"
+                className="object-cover"
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent"></div>
             </div>
           </div>
         </div>
       )}
 
-      <section className="mt-7">
-        {loading && <p className="rounded-xl bg-paper px-4 py-3 text-sm text-ink/70">프로젝트를 불러오는 중입니다...</p>}
-        {error && <p className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>}
+      <section className="mt-8">
+        {loading && <p className="rounded-2xl bg-[#F9F7F3] border border-[#EBEBEB] px-5 py-4 text-sm text-ink-light">프로젝트를 불러오는 중입니다...</p>}
+        {error && <p className="rounded-2xl bg-red-50 border border-red-100 px-5 py-4 text-sm text-red-700">{error}</p>}
 
         {!loading && !error && projects.length === 0 && (
-          <div className="rounded-2xl border border-dashed border-ink/20 bg-paper px-6 py-10 text-center">
-            <p className="text-lg font-semibold">등록된 MVP가 아직 없습니다.</p>
-            <p className="mt-2 text-sm text-ink/70">첫 번째 빌더로 프로젝트를 등록해보세요.</p>
+          <div className="rounded-3xl border-2 border-dashed border-[#EBEBEB] bg-white px-6 py-16 text-center">
+            <p className="text-lg font-black text-ink">등록된 MVP가 아직 없습니다.</p>
+            <p className="mt-2 text-sm text-ink-light">첫 번째 빌더로 프로젝트를 등록해보세요.</p>
           </div>
         )}
 
         {!loading && !error && projects.length > 0 && (
           <>
-            <div className="mb-12 flex flex-col gap-8">
+            <div className="mb-10 flex flex-col gap-6">
               {/* Search Bar */}
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="relative"
-              >
-                <Search className="absolute left-6 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
+              <div className="relative">
+                <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-light" />
                 <input
                   type="text"
-                  placeholder="프로젝트 명, 태그, 키워드로 검색해보세요..."
+                  placeholder="프로젝트 명, 태그, 키워드로 검색..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full rounded-3xl border-2 border-slate-300 bg-white/80 backdrop-blur-sm py-4 pl-16 pr-6 text-lg font-medium shadow-lg transition-all focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-200/50 placeholder:text-slate-400"
+                  className="w-full rounded-full border border-[#EBEBEB] bg-white py-3.5 pl-11 pr-5 text-sm font-medium shadow-card transition-all focus:border-ink/30 focus:outline-none placeholder:text-ink-light/60"
                 />
-              </motion.div>
+              </div>
 
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div className="flex flex-wrap items-center gap-3 overflow-x-auto pb-2">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex flex-wrap items-center gap-2 overflow-x-auto pb-1">
                   <button
                     onClick={() => setActiveFilter("ALL")}
-                    className={`rounded-full px-6 py-2.5 text-sm font-bold transition-all whitespace-nowrap ${activeFilter === "ALL" ? "bg-gradient-to-r from-slate-900 to-slate-800 text-white shadow-lg" : "bg-white border-2 border-slate-300 text-slate-700 hover:bg-slate-50"}`}
+                    className={`rounded-full px-4 py-2 text-sm font-bold transition-all whitespace-nowrap ${activeFilter === "ALL" ? "bg-ink text-white" : "bg-white border border-[#EBEBEB] text-ink-light hover:border-ink/20 hover:text-ink"}`}
                   >
                     전체
                   </button>
@@ -320,23 +313,23 @@ export default function ShowcaseBoard({ initialProjects }: { initialProjects: Pr
                     <button
                       key={key}
                       onClick={() => setActiveFilter(key)}
-                      className={`rounded-full px-6 py-2.5 text-sm font-bold transition-all whitespace-nowrap ${activeFilter === key ? "bg-gradient-to-r from-slate-900 to-slate-800 text-white shadow-lg" : "bg-white border-2 border-slate-300 text-slate-700 hover:bg-slate-50"}`}
+                      className={`rounded-full px-4 py-2 text-sm font-bold transition-all whitespace-nowrap ${activeFilter === key ? "bg-ink text-white" : "bg-white border border-[#EBEBEB] text-ink-light hover:border-ink/20 hover:text-ink"}`}
                     >
                       {label}
                     </button>
                   ))}
                 </div>
 
-                <div className="flex items-center gap-2 rounded-2xl bg-white border-2 border-slate-300 p-1.5 shadow-md">
+                <div className="flex items-center gap-1 rounded-full bg-[#F9F7F3] border border-[#EBEBEB] p-1 self-start sm:self-auto">
                   <button
                     onClick={() => setSortOrder("LATEST")}
-                    className={`rounded-xl px-5 py-2 text-sm font-bold transition-all ${sortOrder === "LATEST" ? "bg-gradient-to-r from-slate-900 to-slate-800 text-white shadow-md" : "text-slate-700 hover:text-slate-900"}`}
+                    className={`rounded-full px-4 py-2 text-sm font-bold transition-all whitespace-nowrap ${sortOrder === "LATEST" ? "bg-white text-ink shadow-card" : "text-ink-light hover:text-ink"}`}
                   >
-                    ⏱️ 최신순
+                    최신순
                   </button>
                   <button
                     onClick={() => setSortOrder("POPULAR")}
-                    className={`rounded-xl px-5 py-2 text-sm font-bold transition-all ${sortOrder === "POPULAR" ? "bg-gradient-to-r from-slate-900 to-slate-800 text-white shadow-md" : "text-slate-700 hover:text-slate-900"}`}
+                    className={`rounded-full px-4 py-2 text-sm font-bold transition-all whitespace-nowrap ${sortOrder === "POPULAR" ? "bg-white text-ink shadow-card" : "text-ink-light hover:text-ink"}`}
                   >
                     🔥 인기순
                   </button>
@@ -346,7 +339,7 @@ export default function ShowcaseBoard({ initialProjects }: { initialProjects: Pr
 
             <motion.div
               layout
-              className="grid grid-cols-1 gap-10 md:grid-cols-2 xl:grid-cols-3"
+              className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3"
             >
               <AnimatePresence mode="popLayout">
                 {projects
@@ -368,55 +361,50 @@ export default function ShowcaseBoard({ initialProjects }: { initialProjects: Pr
                     <motion.article
                       key={project.id}
                       layout
-                      initial={{ opacity: 0, scale: 0.95 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.95 }}
-                      transition={{ duration: 0.3 }}
-                      className="group h-full overflow-hidden rounded-3xl border-2 border-slate-200/50 bg-white shadow-lg hover:shadow-2xl transition-all duration-500 hover:-translate-y-3"
+                      initial={{ opacity: 0, y: 12 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: 12 }}
+                      transition={{ duration: 0.2 }}
+                      className="group h-full overflow-hidden rounded-3xl border border-[#EBEBEB] bg-white shadow-card hover:shadow-card-hover transition-all duration-300 hover:-translate-y-1.5"
                     >
-                      <div className="relative h-72 w-full overflow-hidden bg-gradient-to-br from-slate-100 to-slate-50">
-                        <div className="absolute left-5 top-5 z-20 flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 text-lg font-black text-white shadow-lg">
+                      <div className="relative h-52 w-full overflow-hidden bg-[#F9F7F3]">
+                        <span className="absolute left-4 top-4 z-20 flex h-8 w-8 items-center justify-center rounded-full bg-white text-sm font-black text-ink shadow-btn border border-[#EBEBEB]">
                           {index + 1}
-                        </div>
+                        </span>
                         <Image
                           src={project.thumbnailUrl}
                           alt={`${project.name} 썸네일`}
                           fill
-                          className="object-cover transition-transform duration-700 group-hover:scale-110"
+                          className="object-cover transition-transform duration-500 group-hover:scale-105"
                           sizes="(max-width: 768px) 100vw, 33vw"
                         />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent" />
-                        
-                        {/* Top Right Badge */}
-                        <div className="absolute right-5 top-5 z-10 flex items-center gap-2 rounded-full bg-white/90 px-3 py-1.5 text-xs font-bold shadow-lg backdrop-blur-md">
-                          <span className="text-lg">🔥</span>
-                          <span className="text-slate-900">{project.voteCount || 0}</span>
+                        <div className="absolute right-4 top-4 z-10 flex items-center gap-1.5 rounded-full bg-white px-3 py-1 text-xs font-bold shadow-btn border border-[#EBEBEB]">
+                          🔥 {project.voteCount || 0}
                         </div>
                       </div>
 
-                      <div className="space-y-5 p-7">
+                      <div className="p-5 space-y-4">
                         <div>
-                          <div className="mb-3 flex items-start justify-between gap-3">
+                          <div className="mb-3 flex items-center justify-between gap-2">
                             {project.status && STATUS_LABELS[project.status] && (
-                              <span className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold ${STATUS_LABELS[project.status].color}`}>
-                                <span className="w-2 h-2 rounded-full bg-current opacity-60"></span>
+                              <span className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-bold ${STATUS_LABELS[project.status].color}`}>
                                 {STATUS_LABELS[project.status].label}
                               </span>
                             )}
-                            <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-100 text-xs font-bold text-slate-700 whitespace-nowrap">
-                              <MessageSquare className="h-4 w-4" />
+                            <span className="flex items-center gap-1 text-xs font-semibold text-ink-light">
+                              <MessageSquare className="h-3.5 w-3.5" />
                               {project.commentCount || 0}
                             </span>
                           </div>
-                          <h2 className="text-2xl font-black text-slate-900 group-hover:text-blue-600 transition-colors line-clamp-2">
+                          <h2 className="text-lg font-black text-ink group-hover:text-[#8B6914] transition-colors line-clamp-1">
                             {project.name}
                           </h2>
-                          <p className="mt-2 text-sm font-medium leading-relaxed text-slate-600 line-clamp-2">
+                          <p className="mt-1 text-sm leading-relaxed text-ink-light line-clamp-2">
                             {project.tagline}
                           </p>
                         </div>
 
-                        <div className="flex gap-2 flex-col sm:flex-row">
+                        <div className="flex gap-2">
                           <a
                             href={project.websiteUrl}
                             target="_blank"
@@ -425,28 +413,28 @@ export default function ShowcaseBoard({ initialProjects }: { initialProjects: Pr
                               markStage(project.id, "website_click");
                               void logEvent({ type: "website_click", projectId: project.id, metadata: { from: "main_card" } });
                             }}
-                            className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 px-4 py-3.5 text-sm font-bold text-white shadow-md hover:shadow-lg transition-all hover:-translate-y-0.5 border border-blue-700/50 group/btn"
+                            className="flex flex-1 items-center justify-center gap-1.5 rounded-full bg-ink hover:bg-ink/90 px-4 py-2.5 text-sm font-bold text-white transition-all hover:-translate-y-0.5"
                           >
-                            <span>방문하기</span>
-                            <ExternalLink className="h-4 w-4 group-hover/btn:translate-x-1 transition-transform" />
+                            방문하기
+                            <ExternalLink className="h-3.5 w-3.5" />
                           </a>
                           <Link
                             href={`/project/${project.id}`}
-                            className="flex items-center justify-center gap-2 rounded-2xl border-2 border-slate-300 px-4 py-3.5 text-sm font-bold text-slate-700 bg-white transition-all hover:bg-slate-50 hover:border-slate-400 group/btn"
+                            className="flex items-center justify-center rounded-full border border-[#EBEBEB] hover:border-ink/20 px-3.5 py-2.5 text-ink-light bg-white transition-all hover:text-ink"
                           >
-                            <Info className="h-4 w-4 group-hover/btn:scale-110 transition-transform" />
+                            <Info className="h-4 w-4" />
                           </Link>
                         </div>
 
-                        <div className="pt-5 border-t-2 border-slate-200">
-                          <p className="text-[11px] font-black uppercase tracking-wider text-slate-500 mb-3">☕ 메이커 응원하기</p>
-                          <div className="grid grid-cols-3 gap-2">
+                        <div className="pt-4 border-t border-[#EBEBEB]">
+                          <p className="text-xs font-bold text-ink-light mb-2.5">🍚 밥알로 응원하기</p>
+                          <div className="grid grid-cols-3 gap-1.5">
                             {SUPPORT_TIERS.map((tier) => (
                               <button
                                 key={tier.key}
                                 type="button"
                                 onClick={() => handleSupportClick(project, tier)}
-                                className="rounded-xl bg-orange-100 hover:bg-orange-500 px-2 py-2.5 text-[11px] font-black text-orange-700 hover:text-white transition-all shadow-sm hover:shadow-md"
+                                className="rounded-full bg-[#FFF9C4] border border-[#FFE066] hover:bg-accent hover:border-accent px-2 py-2 text-xs font-bold text-[#8B6914] hover:text-ink transition-all hover:-translate-y-0.5"
                               >
                                 {tier.label}
                               </button>
@@ -463,11 +451,12 @@ export default function ShowcaseBoard({ initialProjects }: { initialProjects: Pr
       </section>
 
       {feedbackTarget && (
-        <div className="fixed inset-0 z-30 flex items-center justify-center bg-ink/40 p-4">
-          <div className="w-full max-w-md rounded-2xl bg-paper p-6 shadow-card">
-            <h3 className="text-xl font-extrabold">후원 후 피드백</h3>
-            <p className="mt-2 text-sm text-ink/75">
-              <strong>{feedbackTarget.projectName}</strong>에 <strong>{feedbackTarget.tierLabel}</strong> 후원을 시도하셨네요.
+        <div className="fixed inset-0 z-30 flex items-center justify-center bg-ink/20 backdrop-blur-sm p-4">
+          <div className="w-full max-w-md rounded-3xl bg-white p-7 shadow-card-hover border border-[#EBEBEB]">
+            <h3 className="text-xl font-black text-ink mb-1">후원 후 피드백</h3>
+            <p className="text-sm text-ink-light">
+              <strong className="text-ink">{feedbackTarget.projectName}</strong>에{" "}
+              <strong className="text-ink">{feedbackTarget.tierLabel}</strong> 후원을 시도하셨네요.
               짧은 의견을 남겨주시면 빌더에게 큰 도움이 됩니다.
             </p>
 
@@ -475,20 +464,20 @@ export default function ShowcaseBoard({ initialProjects }: { initialProjects: Pr
               value={feedbackText}
               onChange={(event) => setFeedbackText(event.target.value)}
               placeholder="한 줄 피드백을 입력해주세요"
-              className="mt-4 w-full rounded-xl border border-ink/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-support"
+              className="mt-5 w-full rounded-2xl border border-[#EBEBEB] bg-[#F9F7F3] px-4 py-3 text-sm outline-none focus:border-ink/20 focus:bg-white transition-colors"
             />
 
-            {feedbackStatus && <p className="mt-3 text-sm text-support">{feedbackStatus}</p>}
+            {feedbackStatus && <p className="mt-3 text-sm text-green-600 font-semibold">{feedbackStatus}</p>}
 
-            <div className="mt-4 flex justify-end gap-2">
-              <button type="button" onClick={() => setFeedbackTarget(null)} className="rounded-xl border border-ink/20 px-4 py-2 text-sm font-semibold hover:bg-ink/5">
+            <div className="mt-5 flex justify-end gap-2">
+              <button type="button" onClick={() => setFeedbackTarget(null)} className="rounded-full border border-[#EBEBEB] px-5 py-2.5 text-sm font-bold text-ink-light hover:text-ink hover:border-ink/20 transition-all">
                 닫기
               </button>
               <button
                 type="button"
                 disabled={submittingFeedback || !feedbackText.trim()}
                 onClick={submitFeedback}
-                className="rounded-xl bg-support px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-support/60"
+                className="rounded-full bg-ink px-5 py-2.5 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-40 hover:bg-ink/90 transition-all"
               >
                 {submittingFeedback ? "저장 중..." : "피드백 제출"}
               </button>
