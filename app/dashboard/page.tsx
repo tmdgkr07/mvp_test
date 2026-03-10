@@ -2,8 +2,8 @@
 import BuilderDashboard from "@/components/BuilderDashboard";
 
 export const metadata: Metadata = {
-  title: "빌더 대시보드",
-  description: "프로젝트별 유입/전환/피드백 데이터를 확인하세요."
+  title: "마이페이지 | 밥주세요",
+  description: "내 MVP 목록과 유입/전환/피드백 데이터를 확인하세요."
 };
 
 export default function DashboardPage() {

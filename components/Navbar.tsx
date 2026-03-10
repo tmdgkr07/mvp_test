@@ -37,7 +37,7 @@ export default function Navbar() {
                 <div className="flex items-center gap-6">
                     <div className="hidden items-center gap-8 md:flex">
                         <Link href="/explore" className="text-sm font-semibold text-slate-700 hover:text-yellow-500 transition-colors">서비스 탐색</Link>
-                        <Link href="/dashboard" className="text-sm font-semibold text-slate-700 hover:text-yellow-500 transition-colors">대시보드</Link>
+                        <Link href="/dashboard" className="text-sm font-semibold text-slate-700 hover:text-yellow-500 transition-colors">마이페이지</Link>
                     </div>
                     <div className="h-6 w-px bg-slate-300/50" />
                     <AuthMenu />
