@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
-import { BarChart2, Bell, Download, ExternalLink, MessageSquare, Pencil, Plus, TrendingDown } from "lucide-react";
+import { BarChart2, Bell, ChevronDown, Download, ExternalLink, MessageSquare, Pencil, Plus, TrendingDown } from "lucide-react";
 import type { Feedback, Project } from "@/lib/types";
 import {
   getDisplayStatusValue,
@@ -216,8 +216,8 @@ export default function BuilderDashboard() {
 
   return (
     <div className="min-h-screen bg-[#FAFAFA]">
-      <div className="border-b border-[#EBEBEB] bg-white">
-        <div className="mx-auto max-w-6xl px-6 py-8">
+      <div className="mx-auto max-w-6xl px-6 pt-8">
+        <div className="rounded-3xl border border-[#EBEBEB] bg-white px-6 py-8 shadow-sm">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               {session?.user?.image ? (
@@ -321,13 +321,16 @@ export default function BuilderDashboard() {
 
                 {!isAggregateView && selectedProject ? (
                   <div className="flex items-center gap-2">
-                    <label className="flex items-center gap-2 rounded-full border border-[#EBEBEB] bg-white px-3 py-2 text-xs font-bold text-gray-700">
+                    <label className="flex items-center gap-2 rounded-2xl border border-[#E5E7EB] bg-white px-3 py-2 text-xs font-bold text-gray-700">
                       <span>상태</span>
-                      <select value={getDisplayStatusValue(selectedProject.status)} onChange={(event) => void updateSelectedProjectStatus(event.target.value as DisplayProjectStatus)} disabled={statusUpdating} className="bg-transparent text-xs font-bold outline-none disabled:opacity-60">
-                        {PROJECT_STATUS_OPTIONS.map((option) => (
-                          <option key={option.value} value={option.value}>{option.label}</option>
-                        ))}
-                      </select>
+                      <div className="relative">
+                        <select value={getDisplayStatusValue(selectedProject.status)} onChange={(event) => void updateSelectedProjectStatus(event.target.value as DisplayProjectStatus)} disabled={statusUpdating} className="appearance-none bg-transparent py-1 pl-1 pr-7 text-sm font-bold text-gray-900 outline-none disabled:cursor-not-allowed disabled:opacity-60">
+                          {PROJECT_STATUS_OPTIONS.map((option) => (
+                            <option key={option.value} value={option.value}>{option.label}</option>
+                          ))}
+                        </select>
+                        <ChevronDown className="pointer-events-none absolute right-1 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                      </div>
                     </label>
                     <Link href={`/register?edit=${selectedProject.id}`} className="flex items-center gap-1.5 rounded-full border border-[#EBEBEB] bg-white px-3.5 py-2 text-xs font-bold text-gray-700 transition-colors hover:bg-gray-50">
                       <Pencil className="h-3 w-3" />
