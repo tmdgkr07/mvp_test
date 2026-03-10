@@ -1,5 +1,5 @@
 ﻿import type { Metadata } from "next";
-import BuilderDashboard from "@/components/BuilderDashboard";
+import MyPageHub from "@/components/MyPageHub";
 
 export const metadata: Metadata = {
   title: "마이페이지 | 밥주세요",
@@ -7,5 +7,5 @@ export const metadata: Metadata = {
 };
 
 export default function DashboardPage() {
-  return <BuilderDashboard />;
+  return <MyPageHub />;
 }

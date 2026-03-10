@@ -1,20 +1,27 @@
 "use client";
 
-import Link from "next/link";
 import Image from "next/image";
-import { useEffect, useState } from "react";
+import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
-import { Download, Pencil, Plus, ExternalLink, BarChart2, MessageSquare, Bell, TrendingDown } from "lucide-react";
+import { BarChart2, Bell, Download, ExternalLink, MessageSquare, Pencil, Plus, TrendingDown } from "lucide-react";
 import type { Feedback, Project } from "@/lib/types";
+import {
+  getDisplayStatusValue,
+  getProjectStatusMeta,
+  PROJECT_STATUS_OPTIONS,
+  type DisplayProjectStatus,
+  type ProjectStatusTone
+} from "@/lib/project-status";
 
-const STATUS_LABELS: Record<string, { label: string; color: string }> = {
-  IDEA: { label: "아이디어", color: "bg-gray-100 text-gray-600" },
-  VALIDATING: { label: "검증 중", color: "bg-blue-50 text-blue-600" },
-  DEVELOPING: { label: "개발 중", color: "bg-orange-50 text-orange-600" },
-  RELEASED: { label: "출시 완료", color: "bg-emerald-50 text-emerald-700" },
-  GROWING: { label: "성장 중", color: "bg-indigo-50 text-indigo-600" },
-  PAUSED: { label: "일시 중단", color: "bg-red-50 text-red-600" },
-  PIVOTED: { label: "피봇", color: "bg-yellow-50 text-yellow-700" },
+const ALL_PROJECTS_KEY = "__all__";
+
+const STATUS_TONE_STYLES: Record<ProjectStatusTone, string> = {
+  idea: "bg-gray-100 text-gray-600",
+  developing: "bg-orange-50 text-orange-600",
+  released: "bg-emerald-50 text-emerald-700",
+  paused: "bg-red-50 text-red-600",
+  pivoted: "bg-yellow-50 text-yellow-700"
 };
 
 type DashboardPayload = {
@@ -24,6 +31,29 @@ type DashboardPayload = {
   avgSessionSeconds: number;
   totalSessions: number;
   feedback: Feedback[];
+  supportSummary: {
+    supportClickCount: number;
+    estimatedAmount: number;
+    totalRice: number;
+    tierBreakdown: Array<{
+      tier: string;
+      label: string;
+      count: number;
+      amount: number;
+      rice: number;
+    }>;
+  };
+};
+
+type WaitlistEntry = { email: string; createdAt: string; projectId: string };
+type Tab = "overview" | "funnel" | "feedback" | "waitlist" | "rice";
+
+type DashboardResponse = {
+  project?: Project;
+  projects: Project[];
+  waitlistCount: number;
+  waitlist: WaitlistEntry[];
+  dashboard: DashboardPayload;
 };
 
 type ApiResult<T> = {
@@ -38,130 +68,187 @@ const EMPTY_DASHBOARD: DashboardPayload = {
   avgSessionSeconds: 0,
   totalSessions: 0,
   feedback: [],
+  supportSummary: {
+    supportClickCount: 0,
+    estimatedAmount: 0,
+    totalRice: 0,
+    tierBreakdown: []
+  }
 };
 
-type WaitlistEntry = { email: string; createdAt: string };
-type Tab = "overview" | "funnel" | "feedback" | "waitlist";
+function formatCurrency(value: number) {
+  return new Intl.NumberFormat("ko-KR", {
+    style: "currency",
+    currency: "KRW",
+    maximumFractionDigits: 0
+  }).format(value);
+}
 
 export default function BuilderDashboard() {
   const { data: session } = useSession();
   const [projects, setProjects] = useState<Project[]>([]);
-  const [selectedProjectId, setSelectedProjectId] = useState<string>("");
+  const [selectedKey, setSelectedKey] = useState<string>(ALL_PROJECTS_KEY);
   const [dashboard, setDashboard] = useState<DashboardPayload>(EMPTY_DASHBOARD);
   const [waitlistCount, setWaitlistCount] = useState(0);
   const [waitlist, setWaitlist] = useState<WaitlistEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [panelLoading, setPanelLoading] = useState(false);
+  const [statusUpdating, setStatusUpdating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<Tab>("overview");
+
+  const selectedProject = projects.find((project) => project.id === selectedKey);
+  const isAggregateView = selectedKey === ALL_PROJECTS_KEY;
 
   useEffect(() => {
     async function bootstrap() {
       try {
         const response = await fetch("/api/dashboard", { cache: "no-store" });
-        const payload = (await response.json()) as ApiResult<{
-          projects: Project[];
-          waitlistCount: number;
-          dashboard: DashboardPayload;
-        }>;
+        const payload = (await response.json()) as ApiResult<DashboardResponse>;
+
         if (!response.ok || !payload.data) {
-          throw new Error(payload.error?.message || "대시보드를 불러오지 못했습니다.");
+          throw new Error(payload.error?.message || "플랫폼 허브를 불러오지 못했습니다.");
         }
+
         setProjects(payload.data.projects);
         setWaitlistCount(payload.data.waitlistCount ?? 0);
+        setWaitlist(payload.data.waitlist ?? []);
         setDashboard(payload.data.dashboard || EMPTY_DASHBOARD);
-        if (payload.data.projects.length > 0) {
-          setSelectedProjectId(payload.data.projects[0].id);
-        }
+        setSelectedKey(ALL_PROJECTS_KEY);
       } catch (e) {
-        setError(e instanceof Error ? e.message : "오류가 발생했습니다.");
+        setError(e instanceof Error ? e.message : "알 수 없는 오류가 발생했습니다.");
       } finally {
         setLoading(false);
       }
     }
+
     void bootstrap();
   }, []);
 
   useEffect(() => {
-    if (!selectedProjectId) return;
+    if (loading) return;
+
     async function fetchDashboard() {
       try {
-        const [dashRes, waitRes] = await Promise.all([
-          fetch(`/api/dashboard?projectId=${selectedProjectId}`, { cache: "no-store" }),
-          fetch(`/api/projects/${selectedProjectId}/waitlist`, { cache: "no-store" }),
-        ]);
-        const dashPayload = (await dashRes.json()) as ApiResult<{ dashboard: DashboardPayload }>;
-        if (!dashRes.ok || !dashPayload.data) {
-          throw new Error(dashPayload.error?.message || "데이터를 불러오지 못했습니다.");
+        setPanelLoading(true);
+        setError(null);
+
+        const endpoint = isAggregateView ? "/api/dashboard" : `/api/dashboard?projectId=${selectedKey}`;
+        const response = await fetch(endpoint, { cache: "no-store" });
+        const payload = (await response.json()) as ApiResult<DashboardResponse>;
+
+        if (!response.ok || !payload.data) {
+          throw new Error(payload.error?.message || "집계 데이터를 불러오지 못했습니다.");
         }
-        setDashboard(dashPayload.data.dashboard || EMPTY_DASHBOARD);
-        if (waitRes.ok) {
-          const waitPayload = (await waitRes.json()) as { data?: { waitlist: WaitlistEntry[] } };
-          setWaitlist(waitPayload.data?.waitlist ?? []);
-        }
+
+        setDashboard(payload.data.dashboard || EMPTY_DASHBOARD);
+        setWaitlist(payload.data.waitlist ?? []);
       } catch (e) {
-        setError(e instanceof Error ? e.message : "오류가 발생했습니다.");
+        setError(e instanceof Error ? e.message : "알 수 없는 오류가 발생했습니다.");
+      } finally {
+        setPanelLoading(false);
       }
     }
+
     void fetchDashboard();
-  }, [selectedProjectId]);
+  }, [isAggregateView, loading, selectedKey]);
 
-  const selectedProject = projects.find((p) => p.id === selectedProjectId);
+  async function updateSelectedProjectStatus(nextStatus: DisplayProjectStatus) {
+    if (!selectedProject || getDisplayStatusValue(selectedProject.status) === nextStatus) {
+      return;
+    }
 
-  const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
+    try {
+      setStatusUpdating(true);
+      setError(null);
+
+      const response = await fetch(`/api/projects/${selectedProject.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: nextStatus })
+      });
+      const payload = (await response.json()) as ApiResult<{ project: Project }>;
+
+      if (!response.ok || !payload.data?.project) {
+        throw new Error(payload.error?.message || "상태 변경에 실패했습니다.");
+      }
+
+      setProjects((current) =>
+        current.map((project) => (project.id === payload.data!.project.id ? payload.data!.project : project))
+      );
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "상태 변경 중 오류가 발생했습니다.");
+    } finally {
+      setStatusUpdating(false);
+    }
+  }
+
+  const tabs: Array<{ id: Tab; label: string; icon: React.ReactNode }> = [
     { id: "overview", label: "개요", icon: <BarChart2 className="h-4 w-4" /> },
     { id: "funnel", label: "퍼널 분석", icon: <TrendingDown className="h-4 w-4" /> },
-    { id: "feedback", label: `피드백 ${dashboard.feedback.length > 0 ? `(${dashboard.feedback.length})` : ""}`, icon: <MessageSquare className="h-4 w-4" /> },
-    { id: "waitlist", label: `알림 신청 ${waitlist.length > 0 ? `(${waitlist.length})` : ""}`, icon: <Bell className="h-4 w-4" /> },
+    { id: "feedback", label: `피드백${dashboard.feedback.length ? ` (${dashboard.feedback.length})` : ""}`, icon: <MessageSquare className="h-4 w-4" /> },
+    { id: "waitlist", label: `알림 신청${waitlist.length ? ` (${waitlist.length})` : ""}`, icon: <Bell className="h-4 w-4" /> },
+    { id: "rice", label: `받은 밥알${dashboard.supportSummary.totalRice ? ` (${dashboard.supportSummary.totalRice})` : ""}`, icon: <span className="text-sm">🍚</span> }
   ];
+
+  const summaryCards = [
+    { label: "총 방문자 수", value: dashboard.totalSessions, sub: "총 세션 수", color: "text-blue-600" },
+    { label: "평균 이용시간", value: `${dashboard.avgSessionSeconds}초`, sub: "세션 종료 기준", color: "text-violet-600" },
+    { label: "피드백 수", value: dashboard.feedback.length, sub: "저장된 의견 수", color: "text-emerald-600" }
+  ];
+
+  const projectNameById = new Map(projects.map((project) => [project.id, project.name]));
+  const headerTitle = isAggregateView ? "종합 집계" : selectedProject?.name ?? "서비스";
+  const headerDescription = isAggregateView
+    ? "등록한 모든 서비스의 플랫폼 내 반응과 검증 데이터를 합산해 보여줍니다."
+    : selectedProject?.tagline ?? "선택한 서비스의 플랫폼 내 반응과 검증 데이터를 보여줍니다.";
+
+  const csvHeader = isAggregateView ? "서비스명,이메일,신청일시" : "이메일,신청일시";
+  const csvRows = waitlist.map((entry) => {
+    const dateText = new Date(entry.createdAt).toLocaleString("ko-KR");
+    if (isAggregateView) {
+      return `${projectNameById.get(entry.projectId) ?? "미분류"},${entry.email},${dateText}`;
+    }
+    return `${entry.email},${dateText}`;
+  });
+
+  const totalVotes = useMemo(() => projects.reduce((sum, project) => sum + project.voteCount, 0), [projects]);
 
   return (
     <div className="min-h-screen bg-[#FAFAFA]">
-      {/* 프로필 헤더 */}
-      <div className="bg-white border-b border-[#EBEBEB]">
+      <div className="border-b border-[#EBEBEB] bg-white">
         <div className="mx-auto max-w-6xl px-6 py-8">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               {session?.user?.image ? (
-                <Image
-                  src={session.user.image}
-                  alt="프로필"
-                  width={56}
-                  height={56}
-                  className="rounded-full ring-2 ring-[#EBEBEB]"
-                />
+                <Image src={session.user.image} alt={session.user.name ?? "profile"} width={56} height={56} className="rounded-full ring-2 ring-[#EBEBEB]" />
               ) : (
-                <div className="h-14 w-14 rounded-full bg-accent flex items-center justify-center text-xl font-black text-gray-900">
-                  {session?.user?.name?.[0] ?? "나"}
+                <div className="flex h-14 w-14 items-center justify-center rounded-full bg-accent text-xl font-black text-gray-900">
+                  {session?.user?.name?.[0] ?? "M"}
                 </div>
               )}
               <div>
-                <h1 className="text-xl font-black text-gray-900">
-                  {session?.user?.name ?? "메이커"}님의 페이지
-                </h1>
-                <p className="text-sm text-gray-400 mt-0.5">
-                  {session?.user?.email}
-                </p>
+                <h1 className="text-xl font-black text-gray-900">{session?.user?.name ?? "메이커"}의 마이페이지</h1>
+                <p className="mt-0.5 text-sm text-gray-400">{session?.user?.email}</p>
               </div>
             </div>
+
             <div className="flex items-center gap-3">
-              <div className="hidden sm:flex items-center gap-6 mr-4">
+              <div className="mr-4 hidden items-center gap-6 sm:flex">
                 <div className="text-center">
-                  <p className="text-lg font-black text-gray-900">{loading ? "…" : projects.length}</p>
-                  <p className="text-xs text-gray-400">서비스</p>
+                  <p className="text-lg font-black text-gray-900">{loading ? "..." : projects.length}</p>
+                  <p className="text-xs text-gray-400">등록 서비스 수</p>
                 </div>
                 <div className="text-center">
-                  <p className="text-lg font-black text-gray-900">{loading ? "…" : projects.reduce((s, p) => s + p.voteCount, 0)}</p>
-                  <p className="text-xs text-gray-400">총 응원</p>
+                  <p className="text-lg font-black text-gray-900">{loading ? "..." : totalVotes}</p>
+                  <p className="text-xs text-gray-400">총응원</p>
                 </div>
                 <div className="text-center">
-                  <p className="text-lg font-black text-gray-900">{loading ? "…" : waitlistCount}</p>
+                  <p className="text-lg font-black text-gray-900">{loading ? "..." : waitlistCount}</p>
                   <p className="text-xs text-gray-400">알림 신청</p>
                 </div>
               </div>
-              <Link
-                href="/register"
-                className="flex items-center gap-2 rounded-full bg-accent hover:bg-yellow-400 px-5 py-2.5 text-sm font-bold text-gray-900 transition-all duration-200 hover:-translate-y-0.5 shadow-btn"
-              >
+              <Link href="/register" className="flex items-center gap-2 rounded-full bg-accent px-5 py-2.5 text-sm font-bold text-gray-900 shadow-btn transition-all duration-200 hover:-translate-y-0.5 hover:bg-yellow-400">
                 <Plus className="h-4 w-4" />
                 서비스 등록
               </Link>
@@ -170,71 +257,52 @@ export default function BuilderDashboard() {
         </div>
       </div>
 
-      {/* 본문: 2-컬럼 레이아웃 */}
       <div className="mx-auto max-w-6xl px-6 py-8">
-        {loading && (
-          <div className="flex items-center justify-center py-24">
-            <p className="text-sm text-gray-400">불러오는 중...</p>
-          </div>
-        )}
-        {error && (
-          <div className="rounded-2xl bg-red-50 border border-red-100 px-5 py-4 text-sm text-red-600">
-            {error}
-          </div>
-        )}
+        {loading && <div className="flex justify-center py-24"><p className="text-sm text-gray-400">불러오는 중...</p></div>}
+        {error && <div className="rounded-2xl border border-red-100 bg-red-50 px-5 py-4 text-sm text-red-600">{error}</div>}
 
         {!loading && !error && (
-          <div className="flex gap-6 items-start">
-            {/* 왼쪽: 서비스 목록 */}
-            <aside className="w-64 shrink-0 sticky top-24">
-              <div className="rounded-2xl bg-white border border-[#EBEBEB] overflow-hidden shadow-sm">
-                <div className="px-4 py-3 border-b border-[#EBEBEB]">
-                  <p className="text-xs font-bold text-gray-400 uppercase tracking-wide">내 서비스</p>
+          <div className="flex items-start gap-6">
+            <aside className="sticky top-24 w-72 shrink-0">
+              <div className="overflow-hidden rounded-2xl border border-[#EBEBEB] bg-white shadow-sm">
+                <div className="border-b border-[#EBEBEB] px-4 py-3">
+                  <p className="text-xs font-bold uppercase tracking-wide text-gray-400">내 서비스</p>
                 </div>
+
+                <button type="button" onClick={() => setSelectedKey(ALL_PROJECTS_KEY)} className={`flex w-full items-start gap-3 border-b border-[#F5F5F5] px-4 py-4 text-left transition-colors ${isAggregateView ? "bg-accent/10" : "hover:bg-gray-50"}`}>
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#FFF3B3] text-[#6B5300]">
+                    <BarChart2 className="h-5 w-5" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-black text-gray-900">종합 집계</p>
+                    <p className="mt-1 text-xs text-gray-500">플랫폼 안에서 수집된 전체 반응을 합산해 봅니다.</p>
+                  </div>
+                </button>
 
                 {projects.length === 0 ? (
                   <div className="px-4 py-8 text-center">
-                    <p className="text-sm text-gray-400 mb-3">아직 등록한 서비스가 없어요</p>
-                    <Link
-                      href="/register"
-                      className="inline-block rounded-full bg-accent hover:bg-yellow-400 px-4 py-2 text-xs font-bold text-gray-900 transition-colors"
-                    >
+                    <p className="mb-3 text-sm text-gray-400">등록한 서비스가 없습니다.</p>
+                    <Link href="/register" className="inline-block rounded-full bg-accent px-4 py-2 text-xs font-bold text-gray-900 transition-colors hover:bg-yellow-400">
                       첫 서비스 등록
                     </Link>
                   </div>
                 ) : (
                   <ul className="divide-y divide-[#F5F5F5]">
                     {projects.map((project) => {
-                      const isSelected = selectedProjectId === project.id;
+                      const isSelected = selectedKey === project.id;
                       return (
                         <li key={project.id}>
-                          <button
-                            onClick={() => setSelectedProjectId(project.id)}
-                            className={`w-full text-left px-4 py-3.5 transition-colors flex items-center gap-3 ${
-                              isSelected ? "bg-accent/10" : "hover:bg-gray-50"
-                            }`}
-                          >
-                            <div className="relative h-9 w-9 shrink-0 rounded-lg overflow-hidden bg-gray-100">
-                              <Image
-                                src={project.thumbnailUrl}
-                                alt={project.name}
-                                fill
-                                className="object-cover"
-                              />
+                          <button type="button" onClick={() => setSelectedKey(project.id)} className={`flex w-full items-center gap-3 px-4 py-3.5 text-left transition-colors ${isSelected ? "bg-accent/10" : "hover:bg-gray-50"}`}>
+                            <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-xl bg-gray-100">
+                              <Image src={project.thumbnailUrl} alt={project.name} fill className="object-cover" />
                             </div>
                             <div className="min-w-0 flex-1">
-                              <p className={`text-sm font-bold truncate ${isSelected ? "text-gray-900" : "text-gray-700"}`}>
-                                {project.name}
-                              </p>
-                              {project.status && STATUS_LABELS[project.status] && (
-                                <span className={`mt-0.5 inline-block text-[10px] font-bold px-2 py-0.5 rounded-full ${STATUS_LABELS[project.status].color}`}>
-                                  {STATUS_LABELS[project.status].label}
-                                </span>
-                              )}
+                              <p className={`truncate text-sm font-bold ${isSelected ? "text-gray-900" : "text-gray-700"}`}>{project.name}</p>
+                              <span className={`mt-1 inline-block rounded-full px-2 py-0.5 text-[10px] font-bold ${STATUS_TONE_STYLES[getProjectStatusMeta(project.status).tone]}`}>
+                                {getProjectStatusMeta(project.status).label}
+                              </span>
                             </div>
-                            {isSelected && (
-                              <div className="h-2 w-2 shrink-0 rounded-full bg-accent"></div>
-                            )}
+                            {isSelected ? <div className="h-2 w-2 shrink-0 rounded-full bg-accent" /> : null}
                           </button>
                         </li>
                       );
@@ -244,232 +312,249 @@ export default function BuilderDashboard() {
               </div>
             </aside>
 
-            {/* 오른쪽: 분석 패널 */}
-            <div className="flex-1 min-w-0">
-              {!selectedProjectId ? (
-                <div className="rounded-2xl bg-white border border-[#EBEBEB] py-20 text-center shadow-sm">
-                  <p className="text-gray-400 text-sm">서비스를 선택하면 분석 데이터가 표시됩니다.</p>
+            <div className="min-w-0 flex-1">
+              <div className="mb-5 flex items-center justify-between gap-4">
+                <div>
+                  <h2 className="text-lg font-black text-gray-900">{headerTitle}</h2>
+                  <p className="mt-0.5 text-sm text-gray-400">{headerDescription}</p>
                 </div>
-              ) : (
-                <>
-                  {/* 선택된 프로젝트 헤더 */}
-                  <div className="mb-5 flex items-center justify-between">
-                    <div>
-                      <h2 className="text-lg font-black text-gray-900">{selectedProject?.name}</h2>
-                      <p className="text-sm text-gray-400 mt-0.5">{selectedProject?.tagline}</p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Link
-                        href={`/register?edit=${selectedProjectId}`}
-                        className="flex items-center gap-1.5 rounded-full border border-[#EBEBEB] bg-white px-3.5 py-2 text-xs font-bold text-gray-700 hover:bg-gray-50 transition-colors"
-                      >
-                        <Pencil className="h-3 w-3" />
-                        편집
-                      </Link>
-                      {selectedProject?.websiteUrl && (
-                        <a
-                          href={selectedProject.websiteUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="flex items-center gap-1.5 rounded-full border border-[#EBEBEB] bg-white px-3.5 py-2 text-xs font-bold text-gray-700 hover:bg-gray-50 transition-colors"
-                        >
-                          <ExternalLink className="h-3 w-3" />
-                          사이트
-                        </a>
-                      )}
-                    </div>
-                  </div>
 
-                  {/* 탭 */}
-                  <div className="flex gap-1 bg-white border border-[#EBEBEB] rounded-xl p-1 mb-5 shadow-sm">
-                    {tabs.map((tab) => (
-                      <button
-                        key={tab.id}
-                        onClick={() => setActiveTab(tab.id)}
-                        className={`flex items-center gap-1.5 flex-1 justify-center rounded-lg px-3 py-2 text-xs font-bold transition-all ${
-                          activeTab === tab.id
-                            ? "bg-gray-900 text-white shadow-sm"
-                            : "text-gray-500 hover:text-gray-900 hover:bg-gray-50"
-                        }`}
-                      >
-                        {tab.icon}
-                        {tab.label}
-                      </button>
+                {!isAggregateView && selectedProject ? (
+                  <div className="flex items-center gap-2">
+                    <label className="flex items-center gap-2 rounded-full border border-[#EBEBEB] bg-white px-3 py-2 text-xs font-bold text-gray-700">
+                      <span>상태</span>
+                      <select value={getDisplayStatusValue(selectedProject.status)} onChange={(event) => void updateSelectedProjectStatus(event.target.value as DisplayProjectStatus)} disabled={statusUpdating} className="bg-transparent text-xs font-bold outline-none disabled:opacity-60">
+                        {PROJECT_STATUS_OPTIONS.map((option) => (
+                          <option key={option.value} value={option.value}>{option.label}</option>
+                        ))}
+                      </select>
+                    </label>
+                    <Link href={`/register?edit=${selectedProject.id}`} className="flex items-center gap-1.5 rounded-full border border-[#EBEBEB] bg-white px-3.5 py-2 text-xs font-bold text-gray-700 transition-colors hover:bg-gray-50">
+                      <Pencil className="h-3 w-3" />
+                      수정
+                    </Link>
+                    {selectedProject.websiteUrl ? (
+                      <a href={selectedProject.websiteUrl} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 rounded-full border border-[#EBEBEB] bg-white px-3.5 py-2 text-xs font-bold text-gray-700 transition-colors hover:bg-gray-50">
+                        <ExternalLink className="h-3 w-3" />
+                        사이트
+                      </a>
+                    ) : null}
+                  </div>
+                ) : null}
+              </div>
+
+              <div className="mb-5 flex flex-wrap gap-1 rounded-xl border border-[#EBEBEB] bg-white p-1 shadow-sm">
+                {tabs.map((tab) => (
+                  <button key={tab.id} type="button" onClick={() => setActiveTab(tab.id)} className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-bold transition-all ${activeTab === tab.id ? "bg-gray-900 text-white shadow-sm" : "text-gray-500 hover:bg-gray-50 hover:text-gray-900"}`}>
+                    {tab.icon}
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+
+              {panelLoading ? (
+                <div className="rounded-2xl border border-[#EBEBEB] bg-white py-20 text-center shadow-sm">
+                  <p className="text-sm text-gray-400">집계 데이터를 불러오는 중...</p>
+                </div>
+              ) : null}
+
+              {!panelLoading && activeTab === "overview" && (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-3 gap-4">
+                    {summaryCards.map(({ label, value, sub, color }) => (
+                      <div key={label} className="rounded-2xl border border-[#EBEBEB] bg-white p-5 shadow-sm">
+                        <p className="mb-2 text-xs font-bold text-gray-400">{label}</p>
+                        <p className={`text-3xl font-black ${color}`}>{value}</p>
+                        <p className="mt-1 text-xs text-gray-400">{sub}</p>
+                      </div>
                     ))}
                   </div>
 
-                  {/* 탭 컨텐츠 */}
-                  {activeTab === "overview" && (
-                    <div className="space-y-4">
-                      <div className="grid grid-cols-3 gap-4">
-                        {[
-                          { label: "총 방문자", value: dashboard.totalSessions, sub: "총 세션 수", color: "text-blue-600" },
-                          { label: "평균 체류", value: `${dashboard.avgSessionSeconds}초`, sub: "콘텐츠 흡수 시간", color: "text-purple-600" },
-                          { label: "피드백", value: dashboard.feedback.length, sub: "유저 의견 수", color: "text-emerald-600" },
-                        ].map(({ label, value, sub, color }) => (
-                          <div key={label} className="rounded-2xl bg-white border border-[#EBEBEB] p-5 shadow-sm">
-                            <p className="text-xs font-bold text-gray-400 mb-2">{label}</p>
-                            <p className={`text-3xl font-black ${color}`}>{value}</p>
-                            <p className="mt-1 text-xs text-gray-400">{sub}</p>
-                          </div>
+                  <div className="rounded-2xl border border-[#EBEBEB] bg-white p-5 shadow-sm">
+                    <p className="mb-4 text-xs font-bold uppercase tracking-wide text-gray-400">퍼널 요약</p>
+                    {dashboard.funnel.length === 0 ? (
+                      <p className="py-4 text-center text-sm text-gray-400">아직 집계 데이터가 없습니다.</p>
+                    ) : (
+                      <div className="flex items-end gap-2">
+                        {dashboard.funnel.map((step, index) => {
+                          const max = Math.max(...dashboard.funnel.map((item) => item.count), 1);
+                          const height = Math.max((step.count / max) * 120, 10);
+                          return (
+                            <div key={step.key} className="flex flex-1 flex-col items-center gap-1.5">
+                              <p className="text-xs font-bold text-gray-700">{step.count}</p>
+                              <div className="w-full rounded-t-lg" style={{ height, backgroundColor: index === 0 ? "#FFDD59" : `rgba(255,221,89,${1 - index * 0.18})` }} />
+                              <p className="text-center text-[10px] leading-tight text-gray-400">{step.stage}</p>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {!panelLoading && activeTab === "funnel" && (
+                <div className="space-y-4">
+                  <div className="rounded-2xl border border-[#EBEBEB] bg-white p-5 shadow-sm">
+                    <p className="mb-4 text-xs font-bold uppercase tracking-wide text-gray-400">단계별 전환</p>
+                    {dashboard.funnel.length === 0 ? <p className="py-6 text-center text-sm text-gray-400">퍼널 데이터가 없습니다.</p> : (
+                      <ul className="space-y-2">
+                        {dashboard.funnel.map((step) => (
+                          <li key={step.key} className="flex items-center justify-between rounded-xl bg-gray-50 px-4 py-3">
+                            <span className="text-sm font-semibold text-gray-700">{step.stage}</span>
+                            <strong className="text-sm font-black text-gray-900">{step.count}건</strong>
+                          </li>
                         ))}
-                      </div>
+                      </ul>
+                    )}
+                  </div>
 
-                      <div className="rounded-2xl bg-white border border-[#EBEBEB] p-5 shadow-sm">
-                        <p className="text-xs font-bold text-gray-400 mb-4 uppercase tracking-wide">최근 퍼널 요약</p>
-                        {dashboard.funnel.length === 0 ? (
-                          <p className="text-sm text-gray-400 text-center py-4">아직 데이터가 없습니다.</p>
-                        ) : (
-                          <div className="flex items-end gap-2">
-                            {dashboard.funnel.map((step, i) => {
-                              const max = Math.max(...dashboard.funnel.map((s) => s.count), 1);
-                              const heightPct = Math.max((step.count / max) * 100, 8);
-                              return (
-                                <div key={step.key} className="flex-1 flex flex-col items-center gap-1.5">
-                                  <p className="text-xs font-bold text-gray-700">{step.count}</p>
-                                  <div
-                                    className="w-full rounded-t-lg transition-all"
-                                    style={{
-                                      height: `${heightPct * 1.2}px`,
-                                      backgroundColor: i === 0 ? "#FFDD59" : `rgba(255,221,89,${1 - i * 0.2})`,
-                                    }}
-                                  />
-                                  <p className="text-[10px] text-gray-400 text-center leading-tight">{step.stage}</p>
-                                </div>
-                              );
-                            })}
+                  <div className="rounded-2xl border border-[#EBEBEB] bg-white p-5 shadow-sm">
+                    <p className="mb-4 text-xs font-bold uppercase tracking-wide text-gray-400">이탈 구간</p>
+                    {dashboard.dropOff.length === 0 ? <p className="py-6 text-center text-sm text-gray-400">이탈 데이터가 없습니다.</p> : (
+                      <ul className="space-y-2">
+                        {dashboard.dropOff.map((item, index) => (
+                          <li key={`${item.from}-${index}`} className="rounded-xl border border-red-100 bg-red-50 px-4 py-3">
+                            <div className="mb-1 flex items-center justify-between">
+                              <span className="text-sm font-bold text-red-800">{item.from} → {item.to}</span>
+                              <span className="text-xs font-bold text-red-600">{item.rate}%</span>
+                            </div>
+                            <p className="text-xs text-red-500">{item.lostUsers}명 이탈</p>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {!panelLoading && activeTab === "feedback" && (
+                <div className="rounded-2xl border border-[#EBEBEB] bg-white p-5 shadow-sm">
+                  <p className="mb-4 text-xs font-bold uppercase tracking-wide text-gray-400">사용자 피드백</p>
+                  {dashboard.feedback.length === 0 ? <div className="py-12 text-center"><p className="text-sm text-gray-400">아직 수집된 피드백이 없습니다.</p></div> : (
+                    <ul className="space-y-3">
+                      {dashboard.feedback.map((item) => (
+                        <li key={item.id} className="rounded-xl border border-[#EBEBEB] p-4">
+                          <div className="flex items-start justify-between gap-3">
+                            <span className={`inline-block shrink-0 rounded-full px-2.5 py-1 text-[10px] font-bold ${item.sentiment === "positive" ? "bg-emerald-100 text-emerald-700" : item.sentiment === "negative" ? "bg-red-100 text-red-700" : "bg-gray-100 text-gray-600"}`}>
+                              {item.sentiment === "positive" ? "긍정" : item.sentiment === "negative" ? "부정" : "중립"}
+                            </span>
+                            <time className="shrink-0 text-xs text-gray-400">{new Date(item.createdAt).toLocaleDateString("ko-KR")}</time>
                           </div>
-                        )}
-                      </div>
-                    </div>
+                          <p className="mt-2.5 text-sm leading-relaxed text-gray-700">{item.comment}</p>
+                        </li>
+                      ))}
+                    </ul>
                   )}
+                </div>
+              )}
 
-                  {activeTab === "funnel" && (
-                    <div className="space-y-4">
-                      <div className="rounded-2xl bg-white border border-[#EBEBEB] p-5 shadow-sm">
-                        <p className="text-xs font-bold text-gray-400 mb-4 uppercase tracking-wide">단계별 전환</p>
-                        {dashboard.funnel.length === 0 ? (
-                          <p className="text-sm text-gray-400 text-center py-6">퍼널 데이터가 없습니다.</p>
-                        ) : (
-                          <ul className="space-y-2">
-                            {dashboard.funnel.map((step) => (
-                              <li key={step.key} className="flex items-center justify-between rounded-xl bg-gray-50 px-4 py-3">
-                                <span className="text-sm font-semibold text-gray-700">{step.stage}</span>
-                                <strong className="text-sm font-black text-gray-900">{step.count}건</strong>
-                              </li>
-                            ))}
-                          </ul>
-                        )}
-                      </div>
+              {!panelLoading && activeTab === "waitlist" && (
+                <div className="rounded-2xl border border-[#EBEBEB] bg-white p-5 shadow-sm">
+                  <div className="mb-4 flex items-center justify-between">
+                    <p className="text-xs font-bold uppercase tracking-wide text-gray-400">알림 신청 목록</p>
+                    {waitlist.length > 0 ? (
+                      <button type="button" onClick={() => {
+                        const csv = [csvHeader, ...csvRows].join("\n");
+                        const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+                        const url = URL.createObjectURL(blob);
+                        const anchor = document.createElement("a");
+                        anchor.href = url;
+                        anchor.download = isAggregateView ? "waitlist_all_projects.csv" : `waitlist_${selectedProject?.name ?? "project"}.csv`;
+                        anchor.click();
+                        URL.revokeObjectURL(url);
+                      }} className="flex items-center gap-1.5 rounded-full border border-[#EBEBEB] px-3.5 py-1.5 text-xs font-bold text-gray-700 transition-colors hover:bg-gray-50">
+                        <Download className="h-3 w-3" />
+                        CSV
+                      </button>
+                    ) : null}
+                  </div>
 
-                      <div className="rounded-2xl bg-white border border-[#EBEBEB] p-5 shadow-sm">
-                        <p className="text-xs font-bold text-gray-400 mb-4 uppercase tracking-wide">이탈 구간</p>
-                        {dashboard.dropOff.length === 0 ? (
-                          <p className="text-sm text-gray-400 text-center py-6">이탈 데이터가 없습니다.</p>
-                        ) : (
-                          <ul className="space-y-2">
-                            {dashboard.dropOff.map((item, i) => (
-                              <li key={`${item.from}-${i}`} className="rounded-xl bg-red-50 border border-red-100 px-4 py-3">
-                                <div className="flex items-center justify-between mb-1">
-                                  <span className="text-sm font-bold text-red-800">{item.from} → {item.to}</span>
-                                  <span className="text-xs font-bold text-red-600">{item.rate}%</span>
-                                </div>
-                                <p className="text-xs text-red-500">{item.lostUsers}명 이탈</p>
-                              </li>
-                            ))}
-                          </ul>
-                        )}
-                      </div>
-                    </div>
-                  )}
-
-                  {activeTab === "feedback" && (
-                    <div className="rounded-2xl bg-white border border-[#EBEBEB] p-5 shadow-sm">
-                      <p className="text-xs font-bold text-gray-400 mb-4 uppercase tracking-wide">유저 피드백 (VOC)</p>
-                      {dashboard.feedback.length === 0 ? (
-                        <div className="py-12 text-center">
-                          <p className="text-sm text-gray-400">아직 남겨진 피드백이 없습니다.</p>
-                        </div>
-                      ) : (
-                        <ul className="space-y-3">
-                          {dashboard.feedback.map((item) => (
-                            <li key={item.id} className="rounded-xl border border-[#EBEBEB] p-4">
-                              <div className="flex items-start justify-between gap-3">
-                                <span className={`shrink-0 inline-block rounded-full px-2.5 py-1 text-[10px] font-bold ${
-                                  item.sentiment === "positive" ? "bg-emerald-100 text-emerald-700" :
-                                  item.sentiment === "negative" ? "bg-red-100 text-red-700" :
-                                  "bg-gray-100 text-gray-600"
-                                }`}>
-                                  {item.sentiment === "positive" ? "긍정" : item.sentiment === "negative" ? "아쉬움" : "중립"}
-                                </span>
-                                <time className="shrink-0 text-xs text-gray-400">
-                                  {new Date(item.createdAt).toLocaleDateString("ko-KR")}
-                                </time>
-                              </div>
-                              <p className="mt-2.5 text-sm leading-relaxed text-gray-700">{item.comment}</p>
-                            </li>
+                  {waitlist.length === 0 ? <div className="py-12 text-center"><p className="text-sm text-gray-400">아직 알림 신청자가 없습니다.</p></div> : (
+                    <div className="overflow-hidden rounded-xl border border-[#EBEBEB]">
+                      <table className="w-full text-sm">
+                        <thead className="border-b border-[#EBEBEB] bg-gray-50">
+                          <tr>
+                            <th className="px-4 py-3 text-left text-xs font-bold text-gray-400">#</th>
+                            {isAggregateView ? <th className="px-4 py-3 text-left text-xs font-bold text-gray-400">서비스</th> : null}
+                            <th className="px-4 py-3 text-left text-xs font-bold text-gray-400">이메일</th>
+                            <th className="px-4 py-3 text-left text-xs font-bold text-gray-400">신청일</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-[#F5F5F5]">
+                          {waitlist.map((entry, index) => (
+                            <tr key={`${entry.projectId}-${entry.email}-${index}`} className="transition-colors hover:bg-gray-50">
+                              <td className="px-4 py-3 text-xs text-gray-400">{index + 1}</td>
+                              {isAggregateView ? <td className="px-4 py-3 text-xs font-medium text-gray-700">{projectNameById.get(entry.projectId) ?? "미분류"}</td> : null}
+                              <td className="px-4 py-3 font-medium text-gray-900">{entry.email}</td>
+                              <td className="px-4 py-3 text-xs text-gray-400">{new Date(entry.createdAt).toLocaleDateString("ko-KR")}</td>
+                            </tr>
                           ))}
-                        </ul>
-                      )}
+                        </tbody>
+                      </table>
                     </div>
                   )}
+                </div>
+              )}
 
-                  {activeTab === "waitlist" && (
-                    <div className="rounded-2xl bg-white border border-[#EBEBEB] p-5 shadow-sm">
-                      <div className="flex items-center justify-between mb-4">
-                        <p className="text-xs font-bold text-gray-400 uppercase tracking-wide">알림 신청자 목록</p>
-                        {waitlist.length > 0 && (
-                          <button
-                            onClick={() => {
-                              const csv = ["이메일,신청일시", ...waitlist.map((w) =>
-                                `${w.email},${new Date(w.createdAt).toLocaleString()}`
-                              )].join("\n");
-                              const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-                              const url = URL.createObjectURL(blob);
-                              const a = document.createElement("a");
-                              a.href = url;
-                              a.download = `waitlist_${selectedProject?.name ?? "export"}.csv`;
-                              a.click();
-                              URL.revokeObjectURL(url);
-                            }}
-                            className="flex items-center gap-1.5 rounded-full border border-[#EBEBEB] px-3.5 py-1.5 text-xs font-bold text-gray-700 hover:bg-gray-50 transition-colors"
-                          >
-                            <Download className="h-3 w-3" />
-                            CSV
-                          </button>
-                        )}
-                      </div>
-                      {waitlist.length === 0 ? (
-                        <div className="py-12 text-center">
-                          <p className="text-sm text-gray-400">아직 알림 신청자가 없습니다.</p>
-                        </div>
-                      ) : (
-                        <div className="overflow-hidden rounded-xl border border-[#EBEBEB]">
-                          <table className="w-full text-sm">
-                            <thead className="bg-gray-50 border-b border-[#EBEBEB]">
-                              <tr>
-                                <th className="px-4 py-3 text-left text-xs font-bold text-gray-400">#</th>
-                                <th className="px-4 py-3 text-left text-xs font-bold text-gray-400">이메일</th>
-                                <th className="px-4 py-3 text-left text-xs font-bold text-gray-400">신청일</th>
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y divide-[#F5F5F5]">
-                              {waitlist.map((entry, i) => (
-                                <tr key={entry.email} className="hover:bg-gray-50 transition-colors">
-                                  <td className="px-4 py-3 text-xs text-gray-400">{i + 1}</td>
-                                  <td className="px-4 py-3 font-medium text-gray-900">{entry.email}</td>
-                                  <td className="px-4 py-3 text-xs text-gray-400">
-                                    {new Date(entry.createdAt).toLocaleDateString("ko-KR")}
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      )}
+              {!panelLoading && activeTab === "rice" && (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                    <div className="rounded-2xl border border-[#EBEBEB] bg-white p-5 shadow-sm">
+                      <p className="mb-2 text-xs font-bold text-gray-400">받은 밥알 수</p>
+                      <p className="text-3xl font-black text-amber-600">{dashboard.supportSummary.totalRice}</p>
+                      <p className="mt-1 text-xs text-gray-400">후원 버튼 클릭 기준 추정 밥알</p>
                     </div>
-                  )}
-                </>
+                    <div className="rounded-2xl border border-[#EBEBEB] bg-white p-5 shadow-sm">
+                      <p className="mb-2 text-xs font-bold text-gray-400">추정 후원 금액</p>
+                      <p className="text-3xl font-black text-emerald-600">{formatCurrency(dashboard.supportSummary.estimatedAmount)}</p>
+                      <p className="mt-1 text-xs text-gray-400">이벤트 metadata.amount 합산</p>
+                    </div>
+                    <div className="rounded-2xl border border-[#EBEBEB] bg-white p-5 shadow-sm">
+                      <p className="mb-2 text-xs font-bold text-gray-400">후원 클릭 수</p>
+                      <p className="text-3xl font-black text-blue-600">{dashboard.supportSummary.supportClickCount}</p>
+                      <p className="mt-1 text-xs text-gray-400">support_button_click 이벤트 수</p>
+                    </div>
+                  </div>
+
+                  <div className="rounded-2xl border border-[#EBEBEB] bg-white p-5 shadow-sm">
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <p className="text-xs font-bold uppercase tracking-wide text-gray-400">밥알 상세 내역</p>
+                        <p className="mt-1 text-sm text-gray-500">실제 결제 완료가 아니라, 사용자가 후원 버튼을 눌러 이동한 기록 기준입니다.</p>
+                      </div>
+                    </div>
+
+                    {dashboard.supportSummary.tierBreakdown.length === 0 ? (
+                      <div className="py-12 text-center">
+                        <p className="text-sm text-gray-400">아직 기록된 밥알 이벤트가 없습니다.</p>
+                      </div>
+                    ) : (
+                      <div className="mt-4 overflow-hidden rounded-xl border border-[#EBEBEB]">
+                        <table className="w-full text-sm">
+                          <thead className="border-b border-[#EBEBEB] bg-gray-50">
+                            <tr>
+                              <th className="px-4 py-3 text-left text-xs font-bold text-gray-400">유형</th>
+                              <th className="px-4 py-3 text-left text-xs font-bold text-gray-400">클릭 수</th>
+                              <th className="px-4 py-3 text-left text-xs font-bold text-gray-400">밥알</th>
+                              <th className="px-4 py-3 text-left text-xs font-bold text-gray-400">금액</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-[#F5F5F5]">
+                            {dashboard.supportSummary.tierBreakdown.map((item) => (
+                              <tr key={item.tier} className="transition-colors hover:bg-gray-50">
+                                <td className="px-4 py-3 font-medium text-gray-900">{item.label}</td>
+                                <td className="px-4 py-3 text-gray-700">{item.count}</td>
+                                <td className="px-4 py-3 text-gray-700">{item.rice}</td>
+                                <td className="px-4 py-3 text-gray-700">{formatCurrency(item.amount)}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                </div>
               )}
             </div>
           </div>

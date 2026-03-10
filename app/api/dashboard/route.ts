@@ -1,10 +1,23 @@
-﻿import { fail, ok } from "@/lib/api-response";
+import { fail, ok } from "@/lib/api-response";
 import { buildDashboard } from "@/lib/analytics";
 import { auth } from "@/lib/auth";
 import { getProjectById, listEvents, listFeedback, listProjects } from "@/lib/data-store";
 import { prisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
+
+async function buildAggregateDashboard(projectIds: string[]) {
+  if (projectIds.length === 0) {
+    return buildDashboard([], []);
+  }
+
+  const [eventsByProject, feedbackByProject] = await Promise.all([
+    Promise.all(projectIds.map((projectId) => listEvents(projectId))),
+    Promise.all(projectIds.map((projectId) => listFeedback(projectId)))
+  ]);
+
+  return buildDashboard(eventsByProject.flat(), feedbackByProject.flat());
+}
 
 export async function GET(request: Request) {
   const session = await auth();
@@ -17,18 +30,32 @@ export async function GET(request: Request) {
   const projectId = searchParams.get("projectId")?.trim();
 
   const allProjects = await listProjects();
-  const userProjects = allProjects.filter(project => project.ownerId === session.user.id);
-  const userProjectIds = userProjects.map(p => p.id);
+  const userProjects = allProjects.filter((project) => project.ownerId === session.user.id);
+  const userProjectIds = userProjects.map((project) => project.id);
 
-  const waitlistCount = userProjectIds.length > 0
-    ? await prisma.waitlist.count({ where: { projectId: { in: userProjectIds } } })
-    : 0;
+  const [waitlistCount, aggregateWaitlist] = userProjectIds.length > 0
+    ? await Promise.all([
+        prisma.waitlist.count({ where: { projectId: { in: userProjectIds } } }),
+        prisma.waitlist.findMany({
+          where: { projectId: { in: userProjectIds } },
+          orderBy: { createdAt: "desc" },
+          select: { email: true, createdAt: true, projectId: true }
+        })
+      ])
+    : [0, []];
 
   if (!projectId) {
+    const dashboard = await buildAggregateDashboard(userProjectIds);
+
     return ok({
       projects: userProjects,
       waitlistCount,
-      dashboard: buildDashboard([], [])
+      waitlist: aggregateWaitlist.map((entry) => ({
+        email: entry.email,
+        createdAt: entry.createdAt.toISOString(),
+        projectId: entry.projectId
+      })),
+      dashboard
     });
   }
 
@@ -41,8 +68,25 @@ export async function GET(request: Request) {
     return fail("FORBIDDEN", "접근 권한이 없습니다.", 403);
   }
 
-  const [events, feedback] = await Promise.all([listEvents(projectId), listFeedback(projectId)]);
-  const dashboard = buildDashboard(events, feedback);
+  const [events, feedback, waitlist] = await Promise.all([
+    listEvents(projectId),
+    listFeedback(projectId),
+    prisma.waitlist.findMany({
+      where: { projectId },
+      orderBy: { createdAt: "desc" },
+      select: { email: true, createdAt: true, projectId: true }
+    })
+  ]);
 
-  return ok({ project, projects: userProjects, waitlistCount, dashboard });
+  return ok({
+    project,
+    projects: userProjects,
+    waitlistCount,
+    waitlist: waitlist.map((entry) => ({
+      email: entry.email,
+      createdAt: entry.createdAt.toISOString(),
+      projectId: entry.projectId
+    })),
+    dashboard: buildDashboard(events, feedback)
+  });
 }

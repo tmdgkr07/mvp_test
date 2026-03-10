@@ -1,4 +1,5 @@
-﻿import { DefaultSession } from "next-auth";
+import { DefaultSession } from "next-auth";
+import type { ProjectStatus } from "@/lib/project-status";
 
 export type EventType =
   | "project_impression"
@@ -23,7 +24,7 @@ export interface Project {
   websiteUrl: string;
   supportUrl: string;
   thumbnailUrl: string;
-  status: "IDEA" | "VALIDATING" | "DEVELOPING" | "RELEASED" | "GROWING" | "PAUSED" | "PIVOTED";
+  status: ProjectStatus;
   voteCount: number;
   commentCount: number;
   tags: string[];
@@ -56,7 +57,7 @@ export interface CreateProjectInput {
   websiteUrl: string;
   supportUrl: string;
   thumbnailUrl?: string;
-  status?: "IDEA" | "VALIDATING" | "DEVELOPING" | "RELEASED" | "GROWING" | "PAUSED" | "PIVOTED";
+  status?: ProjectStatus;
   tags?: string[];
 }
 
@@ -67,7 +68,7 @@ export interface UpdateProjectInput {
   websiteUrl?: string;
   supportUrl?: string;
   thumbnailUrl?: string;
-  status?: "IDEA" | "VALIDATING" | "DEVELOPING" | "RELEASED" | "GROWING" | "PAUSED" | "PIVOTED";
+  status?: ProjectStatus;
   tags?: string[];
 }
 

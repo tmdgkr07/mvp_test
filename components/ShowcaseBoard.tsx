@@ -8,6 +8,7 @@ import VoteButton from "@/components/VoteButton";
 import { motion, AnimatePresence } from "framer-motion";
 import { Search, Trophy, MessageSquare, ExternalLink, Info } from "lucide-react";
 import { useSession } from "next-auth/react";
+import { getProjectStatusMeta, matchesDisplayStatusFilter, PROJECT_STATUS_OPTIONS, type ProjectStatusTone } from "@/lib/project-status";
 
 type SupportTierKey = "mini_tip" | "coffee" | "meal";
 
@@ -16,14 +17,12 @@ type ApiResult<T> = {
   error?: { code: string; message: string };
 };
 
-const STATUS_LABELS: Record<string, { label: string; color: string }> = {
-  IDEA: { label: "아이디어", color: "bg-gray-100 text-gray-700 border-gray-200" },
-  VALIDATING: { label: "검증 중", color: "bg-blue-50 text-blue-700 border-blue-200" },
-  DEVELOPING: { label: "개발 중", color: "bg-orange-50 text-orange-700 border-orange-200" },
-  RELEASED: { label: "출시 완료", color: "bg-emerald-50 text-emerald-700 border-emerald-200" },
-  GROWING: { label: "성장 중", color: "bg-indigo-50 text-indigo-700 border-indigo-200" },
-  PAUSED: { label: "일시 중단", color: "bg-red-50 text-red-700 border-red-200" },
-  PIVOTED: { label: "피봇", color: "bg-yellow-50 text-yellow-800 border-yellow-200" }
+const STATUS_TONE_STYLES: Record<ProjectStatusTone, string> = {
+  idea: "bg-gray-100 text-gray-700 border-gray-200",
+  developing: "bg-orange-50 text-orange-700 border-orange-200",
+  released: "bg-emerald-50 text-emerald-700 border-emerald-200",
+  paused: "bg-red-50 text-red-700 border-red-200",
+  pivoted: "bg-yellow-50 text-yellow-800 border-yellow-200"
 };
 
 const SUPPORT_TIERS: Array<{ key: SupportTierKey; label: string; amount: number }> = [
@@ -309,11 +308,11 @@ export default function ShowcaseBoard({ initialProjects }: { initialProjects: Pr
                   >
                     전체
                   </button>
-                  {Object.entries(STATUS_LABELS).map(([key, { label }]) => (
+                  {PROJECT_STATUS_OPTIONS.map(({ value, label }) => (
                     <button
-                      key={key}
-                      onClick={() => setActiveFilter(key)}
-                      className={`rounded-full px-4 py-2 text-sm font-bold transition-all whitespace-nowrap ${activeFilter === key ? "bg-ink text-white" : "bg-white border border-[#EBEBEB] text-ink-light hover:border-ink/20 hover:text-ink"}`}
+                      key={value}
+                      onClick={() => setActiveFilter(value)}
+                      className={`rounded-full px-4 py-2 text-sm font-bold transition-all whitespace-nowrap ${activeFilter === value ? "bg-ink text-white" : "bg-white border border-[#EBEBEB] text-ink-light hover:border-ink/20 hover:text-ink"}`}
                     >
                       {label}
                     </button>
@@ -344,7 +343,7 @@ export default function ShowcaseBoard({ initialProjects }: { initialProjects: Pr
               <AnimatePresence mode="popLayout">
                 {projects
                   .filter((project) => {
-                    const matchesFilter = activeFilter === "ALL" || project.status === activeFilter;
+                    const matchesFilter = matchesDisplayStatusFilter(project.status, activeFilter);
                     const matchesSearch =
                       project.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                       project.tagline.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -386,11 +385,11 @@ export default function ShowcaseBoard({ initialProjects }: { initialProjects: Pr
                       <div className="p-5 space-y-4">
                         <div>
                           <div className="mb-3 flex items-center justify-between gap-2">
-                            {project.status && STATUS_LABELS[project.status] && (
-                              <span className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-bold ${STATUS_LABELS[project.status].color}`}>
-                                {STATUS_LABELS[project.status].label}
+                            {project.status ? (
+                              <span className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-bold ${STATUS_TONE_STYLES[getProjectStatusMeta(project.status).tone]}`}>
+                                {getProjectStatusMeta(project.status).label}
                               </span>
-                            )}
+                            ) : null}
                             <span className="flex items-center gap-1 text-xs font-semibold text-ink-light">
                               <MessageSquare className="h-3.5 w-3.5" />
                               {project.commentCount || 0}

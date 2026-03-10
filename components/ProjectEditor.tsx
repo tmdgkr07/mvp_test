@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import MarkdownRenderer from "@/components/MarkdownRenderer";
 import type { Project } from "@/lib/types";
+import { getDisplayStatusValue, PROJECT_STATUS_OPTIONS } from "@/lib/project-status";
 
 type ApiResult<T> = {
   data?: T;
@@ -21,7 +22,7 @@ export default function ProjectEditor({ project }: { project: Project }) {
     websiteUrl: project.websiteUrl,
     supportUrl: project.supportUrl,
     thumbnailUrl: project.thumbnailUrl,
-    status: project.status,
+    status: getDisplayStatusValue(project.status),
     hookHeadline: "",
     hookSubtext: "",
     painPoints: "",
@@ -102,7 +103,7 @@ ${form.socialProof.trim() ? `\n---\n\n## 💬 Social Proof (사용자 후기 및
         websiteUrl: payload.data.project.websiteUrl,
         supportUrl: payload.data.project.supportUrl,
         thumbnailUrl: payload.data.project.thumbnailUrl,
-        status: payload.data.project.status,
+        status: getDisplayStatusValue(payload.data.project.status),
         hookHeadline: "",
         hookSubtext: "",
         painPoints: "",
@@ -144,13 +145,11 @@ ${form.socialProof.trim() ? `\n---\n\n## 💬 Social Proof (사용자 후기 및
             onChange={(e) => updateField("status", e.target.value)}
             className="mt-1.5 w-full rounded-xl border border-ink/20 bg-white px-3 py-2.5 text-sm"
           >
-            <option value="IDEA">아이디어 (Idea)</option>
-            <option value="VALIDATING">검증 중 (Validating)</option>
-            <option value="DEVELOPING">개발 중 (Developing)</option>
-            <option value="RELEASED">출시 완료 (Released)</option>
-            <option value="GROWING">성장 중 (Growing)</option>
-            <option value="PAUSED">일시 중단 (Paused)</option>
-            <option value="PIVOTED">피봇 (Pivoted)</option>
+            {PROJECT_STATUS_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
           </select>
         </label>
 

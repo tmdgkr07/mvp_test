@@ -4,6 +4,15 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import FollowButton from "@/components/FollowButton";
+import { getProjectStatusMeta, type ProjectStatusTone } from "@/lib/project-status";
+
+const STATUS_TONE_STYLES: Record<ProjectStatusTone, string> = {
+    idea: "bg-gray-100 text-gray-700 border-gray-200",
+    developing: "bg-orange-50 text-orange-700 border-orange-200",
+    released: "bg-emerald-50 text-emerald-700 border-emerald-200",
+    paused: "bg-red-50 text-red-700 border-red-200",
+    pivoted: "bg-yellow-50 text-yellow-800 border-yellow-200"
+};
 
 const STATUS_LABELS: Record<string, { label: string; color: string }> = {
     IDEA: { label: "아이디어", color: "bg-gray-100 text-gray-700 border-gray-200" },
@@ -146,10 +155,10 @@ export default async function MakerProfilePage({ params }: { params: Promise<{ i
                                             />
                                             {/* Status Badge Overlay */}
                                             <div className="absolute top-4 left-4">
-                                                {project.status && STATUS_LABELS[project.status] && (
-                                                    <span className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold shadow-lg backdrop-blur-sm ${STATUS_LABELS[project.status].color}`}>
+                                                {project.status && (
+                                                    <span className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold shadow-lg backdrop-blur-sm ${STATUS_TONE_STYLES[getProjectStatusMeta(project.status).tone]}`}>
                                                         <span className="w-2 h-2 rounded-full bg-current opacity-70"></span>
-                                                        {STATUS_LABELS[project.status].label}
+                                                        {getProjectStatusMeta(project.status).label}
                                                     </span>
                                                 )}
                                             </div>

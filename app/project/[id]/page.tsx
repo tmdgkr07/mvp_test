@@ -8,6 +8,7 @@ import ProjectDetailClient from "@/components/ProjectDetailClient";
 import VoteButton from "@/components/VoteButton";
 import WaitlistButton from "@/components/WaitlistButton";
 import { getProjectById } from "@/lib/data-store";
+import { getProjectStatusMeta, type ProjectStatusTone } from "@/lib/project-status";
 
 export const revalidate = 120;
 export const preferredRegion = "icn1";
@@ -20,6 +21,14 @@ const STATUS_LABELS: Record<string, { label: string; color: string }> = {
   GROWING: { label: "성장 중", color: "bg-purple-50 text-purple-700 border-purple-200" },
   PAUSED: { label: "일시 중단", color: "bg-red-50 text-red-700 border-red-200" },
   PIVOTED: { label: "피봇", color: "bg-yellow-50 text-yellow-800 border-yellow-200" }
+};
+
+const STATUS_TONE_STYLES: Record<ProjectStatusTone, string> = {
+  idea: "bg-gray-100 text-gray-700 border-gray-200",
+  developing: "bg-orange-50 text-orange-700 border-orange-200",
+  released: "bg-emerald-50 text-emerald-700 border-emerald-200",
+  paused: "bg-red-50 text-red-700 border-red-200",
+  pivoted: "bg-yellow-50 text-yellow-800 border-yellow-200"
 };
 
 type Props = {
@@ -84,10 +93,10 @@ export default async function ProjectDetailPage({ params }: Props) {
               {/* Status & Stats Row */}
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div className="flex items-center gap-3 flex-wrap">
-                  {project.status && STATUS_LABELS[project.status] && (
-                    <span className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-xs font-bold shadow-sm transition-all ${STATUS_LABELS[project.status].color}`}>
+                  {project.status && (
+                    <span className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-xs font-bold shadow-sm transition-all ${STATUS_TONE_STYLES[getProjectStatusMeta(project.status).tone]}`}>
                       <span className="w-2 h-2 rounded-full bg-current opacity-60"></span>
-                      {STATUS_LABELS[project.status].label}
+                      {getProjectStatusMeta(project.status).label}
                     </span>
                   )}
                 </div>

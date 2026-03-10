@@ -17,6 +17,19 @@ function getDurationMs(event: AnalyticsEvent): number {
   return typeof raw === "number" ? raw : 0;
 }
 
+function getSupportAmount(event: AnalyticsEvent): number {
+  const raw = event.metadata?.amount;
+  return typeof raw === "number" ? raw : 0;
+}
+
+function getSupportTier(event: AnalyticsEvent): "mini_tip" | "coffee" | "meal" | "unknown" {
+  const raw = event.metadata?.tier;
+  if (raw === "mini_tip" || raw === "coffee" || raw === "meal") {
+    return raw;
+  }
+  return "unknown";
+}
+
 function getLastStage(event: AnalyticsEvent): FunnelStage {
   const raw = event.metadata?.lastStage;
   if (raw === "main_exposure" || raw === "website_click" || raw === "support_click" || raw === "feedback_submit") {
@@ -38,7 +51,8 @@ export function detectSentiment(comment: string): Feedback["sentiment"] {
 export function buildDashboard(events: AnalyticsEvent[], feedback: Feedback[]) {
   const exposure = events.filter((e) => e.type === "project_impression").length;
   const websiteClick = events.filter((e) => e.type === "website_click").length;
-  const supportClick = events.filter((e) => e.type === "support_button_click").length;
+  const supportEvents = events.filter((e) => e.type === "support_button_click");
+  const supportClick = supportEvents.length;
   const feedbackSubmit = events.filter((e) => e.type === "feedback_submit").length;
 
   const funnel = [
@@ -90,6 +104,32 @@ export function buildDashboard(events: AnalyticsEvent[], feedback: Feedback[]) {
 
   const totalDurationMs = sessionEnds.reduce((sum, event) => sum + getDurationMs(event), 0);
   const avgSessionSeconds = sessionEnds.length ? Math.round(totalDurationMs / sessionEnds.length / 1000) : 0;
+  const estimatedAmount = supportEvents.reduce((sum, event) => sum + getSupportAmount(event), 0);
+  const totalRice = Math.round(estimatedAmount / 1000);
+  const tierLabels: Record<ReturnType<typeof getSupportTier>, string> = {
+    mini_tip: "미니팁",
+    coffee: "커피",
+    meal: "식사",
+    unknown: "기타"
+  };
+  const tierBreakdown = Object.entries(
+    supportEvents.reduce<Record<string, { count: number; amount: number }>>((acc, event) => {
+      const tier = getSupportTier(event);
+      const amount = getSupportAmount(event);
+      const current = acc[tier] ?? { count: 0, amount: 0 };
+      acc[tier] = {
+        count: current.count + 1,
+        amount: current.amount + amount
+      };
+      return acc;
+    }, {})
+  ).map(([tier, summary]) => ({
+    tier,
+    label: tierLabels[tier as keyof typeof tierLabels] ?? "기타",
+    count: summary.count,
+    amount: summary.amount,
+    rice: Math.round(summary.amount / 1000)
+  }));
 
   return {
     funnel,
@@ -97,6 +137,12 @@ export function buildDashboard(events: AnalyticsEvent[], feedback: Feedback[]) {
     exitReport,
     avgSessionSeconds,
     totalSessions: sessionEnds.length,
-    feedback
+    feedback,
+    supportSummary: {
+      supportClickCount: supportClick,
+      estimatedAmount,
+      totalRice,
+      tierBreakdown
+    }
   };
 }

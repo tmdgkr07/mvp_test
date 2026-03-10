@@ -5,6 +5,8 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import MarkdownRenderer from "@/components/MarkdownRenderer";
+import type { DisplayProjectStatus } from "@/lib/project-status";
+import { PROJECT_STATUS_OPTIONS } from "@/lib/project-status";
 
 type FormState = {
   name: string;
@@ -12,7 +14,7 @@ type FormState = {
   websiteUrl: string;
   supportUrl: string;
   thumbnailUrl: string;
-  status: "IDEA" | "VALIDATING" | "DEVELOPING" | "RELEASED" | "GROWING" | "PAUSED" | "PIVOTED";
+  status: DisplayProjectStatus;
 
   // Template specific fields
   hookHeadline: string;
@@ -171,13 +173,11 @@ ${form.socialProof.trim() ? `\n---\n\n## 💬 Social Proof (사용자 후기 및
               onChange={(event) => updateField("status", event.target.value as any)}
               className="mt-1.5 w-full rounded-xl border border-ink/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-support"
             >
-              <option value="IDEA">아이디어 (Idea)</option>
-              <option value="VALIDATING">검증 중 (Validating)</option>
-              <option value="DEVELOPING">개발 중 (Developing)</option>
-              <option value="RELEASED">출시 완료 (Released)</option>
-              <option value="GROWING">성장 중 (Growing)</option>
-              <option value="PAUSED">일시 중단 (Paused)</option>
-              <option value="PIVOTED">피봇 (Pivoted)</option>
+              {PROJECT_STATUS_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
             </select>
           </label>
 
