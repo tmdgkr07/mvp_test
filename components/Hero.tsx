@@ -1,7 +1,5 @@
 "use client";
 
-import { motion } from "framer-motion";
-import { ArrowRight, Rocket, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
@@ -27,97 +25,68 @@ export default function Hero() {
         fetchStats();
     }, []);
 
-    const formatNumber = (num: number) => {
-        return new Intl.NumberFormat("ko-KR").format(num);
-    };
+    const fmt = (n: number) => new Intl.NumberFormat("ko-KR").format(n);
 
     return (
-        <section className="relative overflow-hidden px-6 pt-20 pb-16 sm:px-10 sm:pt-28 sm:pb-24 lg:pt-36 bg-white">
-            {/* Subtle background */}
-            <div className="absolute inset-0 -z-10">
-                <div className="absolute top-0 right-0 w-72 h-72 bg-yellow-100/60 rounded-full blur-3xl"></div>
-                <div className="absolute bottom-10 left-0 w-72 h-72 bg-slate-100/80 rounded-full blur-3xl"></div>
-            </div>
+        <section className="bg-white px-6 pt-20 pb-24 sm:pt-28 sm:pb-32">
+            <div className="mx-auto max-w-3xl text-center">
 
-            <div className="mx-auto max-w-4xl text-center">
-                <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.5 }}
-                    className="inline-flex items-center gap-2 rounded-full bg-yellow-50 border border-yellow-300 px-4 py-1.5 text-sm font-semibold text-yellow-800"
-                >
-                    <Sparkles className="h-4 w-4 text-yellow-500" />
-                    <span>FINTECH · EMBEDDED FINANCE</span>
-                </motion.div>
+                {/* Badge */}
+                <div className="inline-flex items-center gap-2 rounded-full bg-[#FFF9C4] border border-[#FFE066] px-4 py-2 text-sm font-bold text-[#8B6914] mb-8">
+                    <span className="animate-float inline-block">🍚</span>
+                    AI 빌더를 위한 검증 플랫폼
+                </div>
 
-                <motion.h1
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.5, delay: 0.1 }}
-                    className="mt-8 text-5xl sm:text-6xl lg:text-7xl font-black tracking-tight leading-tight text-slate-900"
-                >
-                    <span className="block">후원과 피드백으로</span>
-                    <span className="block text-yellow-500">검증이 남는 구조</span>
-                </motion.h1>
+                {/* Main heading */}
+                <h1 className="text-5xl sm:text-7xl font-black text-ink leading-[1.05] tracking-tight">
+                    후원과 피드백으로<br />
+                    <span className="relative inline-block">
+                        <span className="relative z-10">검증이 남는</span>
+                        <span className="absolute -bottom-1 left-0 right-0 h-4 sm:h-5 bg-accent/40 -z-0 rounded-sm" />
+                    </span>{" "}
+                    구조
+                </h1>
 
-                <motion.p
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.5, delay: 0.2 }}
-                    className="mt-6 text-lg sm:text-xl leading-relaxed text-slate-600 lg:mx-auto lg:max-w-2xl"
-                >
-                    AI로 서비스를 만드는 사람은 늘었지만, 수익이 나기 전 검증이 가장 어렵습니다.<br />
+                {/* Subtext */}
+                <p className="mt-7 text-lg sm:text-xl text-ink-light leading-relaxed max-w-xl mx-auto">
+                    AI로 서비스를 만들었지만 다음이 막막한가요?<br />
                     후원 + 피드백을 결과 화면에 임베드해, 검증 데이터와 초기 수익을 동시에 만드세요.
-                </motion.p>
+                </p>
 
-                <motion.div
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ duration: 0.5, delay: 0.3 }}
-                    className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row"
-                >
+                {/* CTAs */}
+                <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-3">
                     <Link
                         href="/register"
-                        className="group flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-yellow-400 hover:bg-yellow-500 px-8 text-base font-bold text-slate-900 shadow-md hover:shadow-lg transition-all hover:-translate-y-0.5 sm:w-auto"
+                        className="w-full sm:w-auto rounded-full bg-accent hover:bg-accent-dark px-8 py-4 text-base font-bold text-ink transition-all duration-200 shadow-btn hover:shadow-card-hover hover:-translate-y-0.5 active:translate-y-0"
                     >
-                        <Rocket className="h-5 w-5" />
-                        <span>내 서비스 등록하기</span>
+                        내 서비스 등록하기 →
                     </Link>
                     <Link
-                        href="#projects"
-                        className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl border-2 border-slate-200 bg-white px-8 text-base font-bold text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-all sm:w-auto"
+                        href="/explore"
+                        className="w-full sm:w-auto rounded-full border-2 border-[#EBEBEB] hover:border-ink/30 bg-white px-8 py-4 text-base font-bold text-ink transition-all duration-200"
                     >
-                        <span>서비스 둘러보기</span>
-                        <ArrowRight className="h-5 w-5" />
+                        서비스 둘러보기
                     </Link>
-                </motion.div>
+                </div>
 
-                {/* Stats Section */}
-                <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ duration: 1, delay: 0.5 }}
-                    className="mt-20 grid grid-cols-2 sm:grid-cols-3 gap-4 sm:gap-6"
-                >
-                    <div className="rounded-2xl bg-slate-50 border border-slate-200 p-6 sm:p-8">
-                        <p className="text-4xl sm:text-5xl font-black text-slate-900">
-                            {stats ? formatNumber(stats.totalProjects) : "—"}
-                        </p>
-                        <p className="mt-2 text-xs sm:text-sm font-semibold text-slate-500">등록된 서비스</p>
-                    </div>
-                    <div className="rounded-2xl bg-slate-50 border border-slate-200 p-6 sm:p-8">
-                        <p className="text-4xl sm:text-5xl font-black text-yellow-500">
-                            {stats ? formatNumber(stats.totalVotes) : "—"}
-                        </p>
-                        <p className="mt-2 text-xs sm:text-sm font-semibold text-slate-500">누적 후원 / 피드백</p>
-                    </div>
-                    <div className="rounded-2xl bg-slate-50 border border-slate-200 p-6 sm:p-8 col-span-2 sm:col-span-1">
-                        <p className="text-4xl sm:text-5xl font-black text-slate-900">
-                            {stats ? formatNumber(stats.totalUsers) : "—"}
-                        </p>
-                        <p className="mt-2 text-xs sm:text-sm font-semibold text-slate-500">함께하는 빌더</p>
-                    </div>
-                </motion.div>
+                {/* Trust line */}
+                <p className="mt-5 text-xs text-ink-light">
+                    ✓ 무료로 시작 &nbsp;·&nbsp; ✓ 신용카드 불필요 &nbsp;·&nbsp; ✓ 5분이면 등록 완료
+                </p>
+
+                {/* Stats */}
+                <div className="mt-16 grid grid-cols-3 gap-4">
+                    {[
+                        { value: stats ? fmt(stats.totalProjects) : "—", label: "등록된 서비스" },
+                        { value: stats ? fmt(stats.totalVotes) : "—", label: "누적 응원" },
+                        { value: stats ? fmt(stats.totalUsers) : "—", label: "함께하는 빌더" },
+                    ].map(({ value, label }) => (
+                        <div key={label} className="rounded-3xl bg-[#F9F7F3] border border-[#EBEBEB] p-6">
+                            <p className="text-3xl sm:text-4xl font-black text-ink">{value}</p>
+                            <p className="mt-1.5 text-sm font-semibold text-ink-light">{label}</p>
+                        </div>
+                    ))}
+                </div>
             </div>
         </section>
     );

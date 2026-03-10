@@ -10,7 +10,8 @@ const nextConfig = {
       { protocol: "https", hostname: "image.api.playgroundai.com" },
       { protocol: "https", hostname: "drive.google.com" },
       { protocol: "https", hostname: "i.imgur.com" },
-      { protocol: "https", hostname: "imgur.com" }
+      { protocol: "https", hostname: "imgur.com" },
+      { protocol: "https", hostname: "lh3.googleusercontent.com" }
     ]
   }
 };

@@ -3,20 +3,21 @@
 @tailwind utilities;
 
 :root {
-  --bg: #f9f7f2;
-  --ink: #11222e;
-  --accent: #e16a2f;
+  --bg: #FFFFFF;
+  --ink: #1A1A1A;
+  --accent: #FFDD00;
   --support: #0c6a6d;
   --paper: #ffffff;
 }
 
 @layer base {
   * {
-    @apply border-ink/5;
+    @apply border-border;
+    box-sizing: border-box;
   }
   body {
-    @apply bg-canvas text-ink antialiased selection:bg-accent/20 selection:text-ink;
-    font-family: var(--font-noto-sans-kr), var(--font-manrope), sans-serif;
+    @apply bg-canvas text-ink antialiased;
+    font-family: var(--font-manrope), var(--font-noto-sans-kr), sans-serif;
   }
 }
 
@@ -24,13 +25,25 @@
   .glass {
     @apply bg-white/70 backdrop-blur-xl border border-white/20;
   }
-  
+
   .glass-dark {
     @apply bg-ink/80 backdrop-blur-xl border border-white/10;
   }
 
   .text-gradient {
     @apply bg-gradient-to-r from-ink via-accent to-ink bg-clip-text text-transparent bg-[length:200%_auto] animate-gradient;
+  }
+
+  .btn-primary {
+    @apply rounded-full bg-accent hover:bg-accent-dark text-ink font-bold px-6 py-3 transition-all duration-200 shadow-btn hover:shadow-card-hover hover:-translate-y-0.5 active:translate-y-0;
+  }
+
+  .btn-secondary {
+    @apply rounded-full border-2 border-border hover:border-ink/30 bg-white text-ink font-bold px-6 py-3 transition-all duration-200;
+  }
+
+  .card {
+    @apply rounded-3xl border border-border bg-white shadow-card hover:shadow-card-hover transition-all duration-300 hover:-translate-y-1;
   }
 }
 
@@ -40,17 +53,34 @@
   100% { background-position: 0% center; }
 }
 
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-8px); }
+}
+
 .animate-gradient {
   animation: gradient 8s linear infinite;
 }
 
+.animate-float {
+  animation: float 4s ease-in-out infinite;
+}
+
 /* Custom Scrollbar */
 ::-webkit-scrollbar {
-  width: 10px;
+  width: 8px;
 }
 ::-webkit-scrollbar-track {
-  @apply bg-canvas;
+  background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  @apply bg-ink/10 rounded-full border-4 border-solid border-canvas hover:bg-ink/20 transition-colors;
+  @apply bg-ink/10 rounded-full hover:bg-ink/20 transition-colors;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+/* Selection */
+::selection {
+  background: #FFDD0050;
+  color: #1A1A1A;
 }
