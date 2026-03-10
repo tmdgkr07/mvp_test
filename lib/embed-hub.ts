@@ -1,6 +1,6 @@
+import crypto from "node:crypto";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import type { Project } from "@/lib/types";
 
 const DEFAULT_EMBED_SERVICE_URL = "https://embed-sponsor.vercel.app";
 const FEEDBACK_LIMIT = 8;
@@ -27,11 +27,14 @@ type CreatorProjectRow = {
   id: string;
   owner_user_id: bigint | number;
   name: string;
+  website_url: string | null;
   allowed_origins: string[] | null;
   require_signed_embed: boolean;
   moderate_messages: boolean;
   public_messages: boolean;
   archived_at: Date | null;
+  created_at: Date;
+  updated_at: Date;
 };
 
 type OverviewRow = {
@@ -75,13 +78,17 @@ type DailySeriesRow = {
   total_amount: bigint | number | null;
 };
 
-export type EmbedServiceProject = {
+export type EmbedServiceSummary = {
   id: string;
   name: string;
+  websiteUrl: string | null;
+  websiteOrigin: string | null;
   allowedOrigins: string[];
   requireSignedEmbed: boolean;
   moderateMessages: boolean;
   publicMessages: boolean;
+  createdAt: string;
+  updatedAt: string;
 };
 
 export type EmbedHubOverview = {
@@ -132,8 +139,9 @@ export type EmbedHubPayload = {
   widgetScriptUrl: string;
   adminUrl: string | null;
   publicMessagesUrl: string | null;
+  websiteUrl: string | null;
   websiteOrigin: string | null;
-  embedProject: EmbedServiceProject | null;
+  embedProject: EmbedServiceSummary | null;
   requiresToken: boolean;
   snippet: string | null;
   overview: EmbedHubOverview;
@@ -182,6 +190,37 @@ function toIsoString(value: Date | string | null | undefined) {
   return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
 }
 
+function parseOriginFromUrl(value: string | null | undefined) {
+  const normalized = normalizeText(value);
+  if (!normalized) {
+    return null;
+  }
+
+  try {
+    return new URL(normalized).origin;
+  } catch (error) {
+    return null;
+  }
+}
+
+function sanitizeServiceName(value: unknown) {
+  return normalizeText(value).replace(/\s+/g, " ").slice(0, 120);
+}
+
+function createProjectId() {
+  return `project_${crypto.randomUUID().replace(/-/g, "").slice(0, 16)}`;
+}
+
+function createDefaultCampaign(project: EmbedServiceSummary) {
+  const base = normalizeText(project.websiteOrigin || project.id)
+    .toLowerCase()
+    .replace(/^https?:\/\//, "")
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+
+  return (base || project.id).slice(0, 48);
+}
+
 function getEmbedServiceUrl() {
   const raw =
     process.env.EMBED_SERVICE_URL ||
@@ -191,14 +230,6 @@ function getEmbedServiceUrl() {
     DEFAULT_EMBED_SERVICE_URL;
 
   return raw.replace(/\/$/, "");
-}
-
-function getWebsiteOrigin(project: Project) {
-  try {
-    return new URL(project.websiteUrl).origin;
-  } catch (error) {
-    return null;
-  }
 }
 
 function getAdminEmails() {
@@ -241,6 +272,7 @@ async function ensureEmbedSchema() {
         id VARCHAR(80) PRIMARY KEY,
         owner_user_id BIGINT NOT NULL REFERENCES dashboard_users(id) ON DELETE CASCADE,
         name VARCHAR(120) NOT NULL,
+        website_url TEXT,
         allowed_origins TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
         require_signed_embed BOOLEAN NOT NULL DEFAULT TRUE,
         moderate_messages BOOLEAN NOT NULL DEFAULT FALSE,
@@ -249,6 +281,10 @@ async function ensureEmbedSchema() {
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       )
+    `,
+    `
+      ALTER TABLE creator_projects
+      ADD COLUMN IF NOT EXISTS website_url TEXT
     `,
     `
       CREATE INDEX IF NOT EXISTS creator_projects_owner_idx
@@ -263,7 +299,7 @@ async function ensureEmbedSchema() {
   ensuredSchema = true;
 }
 
-async function ensureDashboardUser(user: SessionUser) {
+export async function ensureDashboardUser(user: SessionUser) {
   await ensureEmbedSchema();
 
   const provider = "mvp_test";
@@ -274,7 +310,7 @@ async function ensureDashboardUser(user: SessionUser) {
   const role = getAdminEmails().includes(email) ? "super_admin" : "project_admin";
 
   if (!providerUserId || !email) {
-    throw new Error("임베드 연동에는 로그인한 사용자의 고유 ID와 이메일이 필요합니다.");
+    throw new Error("서비스 허브를 사용하려면 로그인한 사용자의 고유 ID와 이메일이 필요합니다.");
   }
 
   const existingRows = await prisma.$queryRaw<DashboardUserRow[]>(Prisma.sql`
@@ -330,68 +366,135 @@ async function ensureDashboardUser(user: SessionUser) {
   return insertedRows[0];
 }
 
-async function ensureCreatorProject(project: Project, ownerUser: DashboardUserRow) {
-  const websiteOrigin = getWebsiteOrigin(project);
-  const allowedOriginsSql = websiteOrigin
-    ? Prisma.sql`ARRAY[${websiteOrigin}]::text[]`
-    : Prisma.sql`ARRAY[]::text[]`;
+function mapEmbedProject(row: CreatorProjectRow): EmbedServiceSummary {
+  const websiteUrl = normalizeText(row.website_url) || null;
+  const websiteOrigin = parseOriginFromUrl(websiteUrl);
+
+  return {
+    id: row.id,
+    name: row.name,
+    websiteUrl,
+    websiteOrigin,
+    allowedOrigins: Array.isArray(row.allowed_origins)
+      ? row.allowed_origins.map((item) => normalizeText(item)).filter(Boolean)
+      : [],
+    requireSignedEmbed: Boolean(row.require_signed_embed),
+    moderateMessages: Boolean(row.moderate_messages),
+    publicMessages: Boolean(row.public_messages),
+    createdAt: toIsoString(row.created_at) || new Date().toISOString(),
+    updatedAt: toIsoString(row.updated_at) || new Date().toISOString()
+  };
+}
+
+export async function listEmbedProjectsForOwner(ownerUserId: number) {
+  await ensureEmbedSchema();
+
+  const rows = await prisma.$queryRaw<CreatorProjectRow[]>(Prisma.sql`
+    SELECT *
+    FROM creator_projects
+    WHERE owner_user_id = ${ownerUserId}
+      AND archived_at IS NULL
+    ORDER BY updated_at DESC, created_at DESC
+  `);
+
+  return rows.map((row) => mapEmbedProject(row));
+}
+
+export async function findEmbedProjectForOwner(projectId: string, ownerUserId: number) {
+  await ensureEmbedSchema();
+
+  const rows = await prisma.$queryRaw<CreatorProjectRow[]>(Prisma.sql`
+    SELECT *
+    FROM creator_projects
+    WHERE id = ${normalizeText(projectId)}
+      AND owner_user_id = ${ownerUserId}
+      AND archived_at IS NULL
+    LIMIT 1
+  `);
+
+  return rows[0] ? mapEmbedProject(rows[0]) : null;
+}
+
+export async function createEmbedProjectForOwner(input: {
+  ownerUserId: number;
+  name: string;
+  websiteUrl: string;
+}) {
+  await ensureEmbedSchema();
+
+  const ownerUserId = Number(input.ownerUserId);
+  const name = sanitizeServiceName(input.name);
+  const websiteUrl = normalizeText(input.websiteUrl);
+  const websiteOrigin = parseOriginFromUrl(websiteUrl);
+
+  if (!Number.isFinite(ownerUserId) || ownerUserId <= 0) {
+    throw new Error("서비스 생성에 필요한 사용자 정보가 올바르지 않습니다.");
+  }
+
+  if (!name) {
+    throw new Error("서비스 이름을 입력해 주세요.");
+  }
+
+  if (!websiteOrigin) {
+    throw new Error("올바른 사이트 주소를 입력해 주세요.");
+  }
+
+  const duplicateRows = await prisma.$queryRaw<Array<{ id: string }>>(Prisma.sql`
+    SELECT id
+    FROM creator_projects
+    WHERE owner_user_id = ${ownerUserId}
+      AND archived_at IS NULL
+      AND (
+        website_url = ${websiteUrl}
+        OR ${websiteOrigin} = ANY(COALESCE(allowed_origins, ARRAY[]::text[]))
+      )
+    LIMIT 1
+  `);
+
+  if (duplicateRows[0]) {
+    throw new Error("이미 같은 사이트 주소로 만든 임베드 서비스가 있습니다.");
+  }
 
   const rows = await prisma.$queryRaw<CreatorProjectRow[]>(Prisma.sql`
     INSERT INTO creator_projects (
       id,
       owner_user_id,
       name,
+      website_url,
       allowed_origins,
       require_signed_embed,
       moderate_messages,
-      public_messages,
-      archived_at
+      public_messages
     )
     VALUES (
-      ${project.id},
-      ${Number(ownerUser.id)},
-      ${project.name},
-      ${allowedOriginsSql},
+      ${createProjectId()},
+      ${ownerUserId},
+      ${name},
+      ${websiteUrl},
+      ARRAY[${websiteOrigin}]::text[],
       FALSE,
       FALSE,
-      TRUE,
-      NULL
+      TRUE
     )
-    ON CONFLICT (id)
-    DO UPDATE SET
-      owner_user_id = EXCLUDED.owner_user_id,
-      name = EXCLUDED.name,
-      allowed_origins = CASE
-        WHEN cardinality(EXCLUDED.allowed_origins) = 0 THEN creator_projects.allowed_origins
-        ELSE ARRAY(
-          SELECT DISTINCT origin_value
-          FROM unnest(COALESCE(creator_projects.allowed_origins, ARRAY[]::text[]) || EXCLUDED.allowed_origins) AS origin_value
-          WHERE origin_value IS NOT NULL AND origin_value <> ''
-        )
-      END,
-      archived_at = NULL,
-      updated_at = NOW()
     RETURNING *
   `);
 
-  return rows[0];
+  return mapEmbedProject(rows[0]);
 }
 
-function mapEmbedProject(row: CreatorProjectRow | null): EmbedServiceProject | null {
-  if (!row) {
-    return null;
-  }
+export async function archiveEmbedProjectForOwner(projectId: string, ownerUserId: number) {
+  await ensureEmbedSchema();
 
-  return {
-    id: row.id,
-    name: row.name,
-    allowedOrigins: Array.isArray(row.allowed_origins)
-      ? row.allowed_origins.map((item) => normalizeText(item)).filter(Boolean)
-      : [],
-    requireSignedEmbed: Boolean(row.require_signed_embed),
-    moderateMessages: Boolean(row.moderate_messages),
-    publicMessages: Boolean(row.public_messages)
-  };
+  const rows = await prisma.$queryRaw<CreatorProjectRow[]>(Prisma.sql`
+    UPDATE creator_projects
+    SET archived_at = NOW(), updated_at = NOW()
+    WHERE id = ${normalizeText(projectId)}
+      AND owner_user_id = ${ownerUserId}
+      AND archived_at IS NULL
+    RETURNING *
+  `);
+
+  return rows[0] ? mapEmbedProject(rows[0]) : null;
 }
 
 async function getOverview(projectId: string, since: Date) {
@@ -559,15 +662,11 @@ async function getDailySeries(projectId: string, since: Date) {
   }
 }
 
-export async function getEmbedHubPayload(project: Project, user: SessionUser, days = 30): Promise<EmbedHubPayload> {
-  const ownerUser = await ensureDashboardUser(user);
-  const creatorProject = await ensureCreatorProject(project, ownerUser);
-  const embedProject = mapEmbedProject(creatorProject);
+export async function getEmbedHubPayload(project: EmbedServiceSummary, days = 30): Promise<EmbedHubPayload> {
   const serviceUrl = getEmbedServiceUrl();
   const widgetScriptUrl = `${serviceUrl}/widget.js`;
   const adminUrl = `${serviceUrl}/admin?projectId=${encodeURIComponent(project.id)}`;
   const publicMessagesUrl = `${serviceUrl}/messages?projectId=${encodeURIComponent(project.id)}`;
-  const websiteOrigin = getWebsiteOrigin(project);
   const safeDays = Number.isFinite(days) && days > 0 && days <= 365 ? days : 30;
   const since = new Date(Date.now() - safeDays * 24 * 60 * 60 * 1000);
   const [overview, feedback, topPages, series] = await Promise.all([
@@ -577,7 +676,7 @@ export async function getEmbedHubPayload(project: Project, user: SessionUser, da
     getDailySeries(project.id, since)
   ]);
 
-  const requiresToken = Boolean(embedProject?.requireSignedEmbed);
+  const requiresToken = Boolean(project.requireSignedEmbed);
   const snippet = requiresToken
     ? null
     : [
@@ -585,7 +684,7 @@ export async function getEmbedHubPayload(project: Project, user: SessionUser, da
         `  src="${widgetScriptUrl}"`,
         "  async",
         `  data-project-id="${project.id}"`,
-        `  data-campaign="${project.slug}"`,
+        `  data-campaign="${createDefaultCampaign(project)}"`,
         "></script>"
       ].join("\n");
 
@@ -596,8 +695,9 @@ export async function getEmbedHubPayload(project: Project, user: SessionUser, da
     widgetScriptUrl,
     adminUrl,
     publicMessagesUrl,
-    websiteOrigin,
-    embedProject,
+    websiteUrl: project.websiteUrl,
+    websiteOrigin: project.websiteOrigin,
+    embedProject: project,
     requiresToken,
     snippet,
     overview,
