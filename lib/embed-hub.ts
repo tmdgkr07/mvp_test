@@ -232,6 +232,69 @@ function getEmbedServiceUrl() {
   return raw.replace(/\/$/, "");
 }
 
+function getProvisionProjectUrl() {
+  return `${getEmbedServiceUrl()}/api/self-serve/project`;
+}
+
+function getProjectDashboardUrl(projectId: string, days: number) {
+  const url = new URL(`${getEmbedServiceUrl()}/api/public/project-dashboard`);
+  url.searchParams.set("projectId", projectId);
+  url.searchParams.set("days", String(days));
+  return url.toString();
+}
+
+async function readJsonResponse(response: Response) {
+  try {
+    return await response.json();
+  } catch (error) {
+    return null;
+  }
+}
+
+async function syncProjectToEmbedService(project: EmbedServiceSummary) {
+  const response = await fetch(getProvisionProjectUrl(), {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      projectId: project.id,
+      name: project.name,
+      websiteUrl: project.websiteUrl
+    }),
+    cache: "no-store"
+  });
+  const payload = await readJsonResponse(response);
+
+  if (!response.ok) {
+    throw new Error(
+      (payload && payload.error) || "임베드 서비스에 프로젝트를 동기화하지 못했습니다."
+    );
+  }
+
+  return payload;
+}
+
+async function fetchEmbedServiceDashboard(projectId: string, days: number) {
+  const response = await fetch(getProjectDashboardUrl(projectId, days), {
+    cache: "no-store"
+  });
+  const payload = await readJsonResponse(response);
+
+  if (!response.ok || !payload) {
+    throw new Error(
+      (payload && payload.error) || "임베드 서비스 대시보드 데이터를 불러오지 못했습니다."
+    );
+  }
+
+  return {
+    overview: payload.overview ?? ZERO_OVERVIEW,
+    feedback: Array.isArray(payload.feedback) ? payload.feedback : [],
+    topPages: Array.isArray(payload.pages) ? payload.pages : [],
+    series: Array.isArray(payload.series) ? payload.series : []
+  };
+}
+
 function getAdminEmails() {
   return Array.from(
     new Set(
@@ -479,7 +542,15 @@ export async function createEmbedProjectForOwner(input: {
     RETURNING *
   `);
 
-  return mapEmbedProject(rows[0]);
+  const project = mapEmbedProject(rows[0]);
+
+  try {
+    await syncProjectToEmbedService(project);
+    return project;
+  } catch (error) {
+    await archiveEmbedProjectForOwner(project.id, ownerUserId);
+    throw error;
+  }
 }
 
 export async function archiveEmbedProjectForOwner(projectId: string, ownerUserId: number) {
@@ -668,13 +739,8 @@ export async function getEmbedHubPayload(project: EmbedServiceSummary, days = 30
   const adminUrl = `${serviceUrl}/admin?projectId=${encodeURIComponent(project.id)}`;
   const publicMessagesUrl = `${serviceUrl}/messages?projectId=${encodeURIComponent(project.id)}`;
   const safeDays = Number.isFinite(days) && days > 0 && days <= 365 ? days : 30;
-  const since = new Date(Date.now() - safeDays * 24 * 60 * 60 * 1000);
-  const [overview, feedback, topPages, series] = await Promise.all([
-    getOverview(project.id, since),
-    getRecentFeedback(project.id),
-    getTopPages(project.id, since),
-    getDailySeries(project.id, since)
-  ]);
+  await syncProjectToEmbedService(project);
+  const { overview, feedback, topPages, series } = await fetchEmbedServiceDashboard(project.id, safeDays);
 
   const requiresToken = Boolean(project.requireSignedEmbed);
   const snippet = requiresToken
