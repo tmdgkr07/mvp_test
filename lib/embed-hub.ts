@@ -217,39 +217,48 @@ async function ensureEmbedSchema() {
     return;
   }
 
-  await prisma.$executeRawUnsafe(`
-    CREATE TABLE IF NOT EXISTS dashboard_users (
-      id BIGSERIAL PRIMARY KEY,
-      provider VARCHAR(32) NOT NULL DEFAULT 'supabase',
-      provider_user_id VARCHAR(191) NOT NULL,
-      email VARCHAR(320) NOT NULL,
-      display_name VARCHAR(120),
-      avatar_url TEXT,
-      role VARCHAR(20) NOT NULL DEFAULT 'project_admin',
-      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-      UNIQUE (provider, provider_user_id)
-    );
+  const schemaStatements = [
+    `
+      CREATE TABLE IF NOT EXISTS dashboard_users (
+        id BIGSERIAL PRIMARY KEY,
+        provider VARCHAR(32) NOT NULL DEFAULT 'supabase',
+        provider_user_id VARCHAR(191) NOT NULL,
+        email VARCHAR(320) NOT NULL,
+        display_name VARCHAR(120),
+        avatar_url TEXT,
+        role VARCHAR(20) NOT NULL DEFAULT 'project_admin',
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        UNIQUE (provider, provider_user_id)
+      )
+    `,
+    `
+      CREATE UNIQUE INDEX IF NOT EXISTS dashboard_users_email_lower_idx
+        ON dashboard_users ((LOWER(email)))
+    `,
+    `
+      CREATE TABLE IF NOT EXISTS creator_projects (
+        id VARCHAR(80) PRIMARY KEY,
+        owner_user_id BIGINT NOT NULL REFERENCES dashboard_users(id) ON DELETE CASCADE,
+        name VARCHAR(120) NOT NULL,
+        allowed_origins TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
+        require_signed_embed BOOLEAN NOT NULL DEFAULT TRUE,
+        moderate_messages BOOLEAN NOT NULL DEFAULT FALSE,
+        public_messages BOOLEAN NOT NULL DEFAULT TRUE,
+        archived_at TIMESTAMPTZ,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `,
+    `
+      CREATE INDEX IF NOT EXISTS creator_projects_owner_idx
+        ON creator_projects (owner_user_id, created_at DESC)
+    `
+  ];
 
-    CREATE UNIQUE INDEX IF NOT EXISTS dashboard_users_email_lower_idx
-      ON dashboard_users ((LOWER(email)));
-
-    CREATE TABLE IF NOT EXISTS creator_projects (
-      id VARCHAR(80) PRIMARY KEY,
-      owner_user_id BIGINT NOT NULL REFERENCES dashboard_users(id) ON DELETE CASCADE,
-      name VARCHAR(120) NOT NULL,
-      allowed_origins TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
-      require_signed_embed BOOLEAN NOT NULL DEFAULT TRUE,
-      moderate_messages BOOLEAN NOT NULL DEFAULT FALSE,
-      public_messages BOOLEAN NOT NULL DEFAULT TRUE,
-      archived_at TIMESTAMPTZ,
-      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-    );
-
-    CREATE INDEX IF NOT EXISTS creator_projects_owner_idx
-      ON creator_projects (owner_user_id, created_at DESC);
-  `);
+  for (const statement of schemaStatements) {
+    await prisma.$executeRawUnsafe(statement);
+  }
 
   ensuredSchema = true;
 }
