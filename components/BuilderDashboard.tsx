@@ -42,6 +42,7 @@ export default function BuilderDashboard() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [selectedProjectId, setSelectedProjectId] = useState<string>("");
   const [dashboard, setDashboard] = useState<DashboardPayload>(EMPTY_DASHBOARD);
+  const [waitlistCount, setWaitlistCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -49,12 +50,13 @@ export default function BuilderDashboard() {
     async function bootstrap() {
       try {
         const response = await fetch("/api/dashboard", { cache: "no-store" });
-        const payload = (await response.json()) as ApiResult<{ projects: Project[]; dashboard: DashboardPayload }>;
+        const payload = (await response.json()) as ApiResult<{ projects: Project[]; waitlistCount: number; dashboard: DashboardPayload }>;
         if (!response.ok || !payload.data) {
           throw new Error(payload.error?.message || "대시보드를 불러오지 못했습니다.");
         }
 
         setProjects(payload.data.projects);
+        setWaitlistCount(payload.data.waitlistCount ?? 0);
         setDashboard(payload.data.dashboard || EMPTY_DASHBOARD);
 
         if (payload.data.projects.length > 0) {
@@ -102,6 +104,24 @@ export default function BuilderDashboard() {
         <Link href="/register" className="rounded-2xl bg-yellow-400 hover:bg-yellow-500 px-5 py-2.5 text-sm font-bold text-slate-900 transition-all">
           + 서비스 등록
         </Link>
+      </div>
+
+      {/* 요약 통계 카드 */}
+      <div className="mt-6 grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {[
+          { emoji: "📦", value: projects.length, label: "등록 아이템" },
+          { emoji: "🔥", value: projects.reduce((s, p) => s + p.voteCount, 0), label: "총 응원" },
+          { emoji: "💬", value: projects.reduce((s, p) => s + p.commentCount, 0), label: "총 댓글" },
+          { emoji: "🔔", value: waitlistCount, label: "알림 신청" },
+        ].map(({ emoji, value, label }) => (
+          <div key={label} className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
+            <span className="text-2xl">{emoji}</span>
+            <div>
+              <p className="text-xl font-black text-slate-900">{loading ? "…" : value}</p>
+              <p className="text-xs text-slate-500">{label}</p>
+            </div>
+          </div>
+        ))}
       </div>
 
       {loading && <p className="mt-6 rounded-xl bg-slate-50 px-4 py-3 text-sm text-slate-500">불러오는 중...</p>}

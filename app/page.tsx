@@ -75,7 +75,7 @@ export default function HomePage() {
                 <p className="text-xs font-bold text-yellow-500 uppercase tracking-widest mb-1">STEP 2</p>
                 <p className="text-xl font-black text-slate-900 mb-2">사용자가 결과를 보는 그 순간, 반응이 쌓입니다</p>
                 <p className="text-sm text-slate-500 leading-relaxed">
-                  미니팁 1,000원 / 커피 한 잔 3,900원 / 밥 한 끼 6,900원.<br />
+                  밥알 5개, 밥알10개, 밥알30알<br />
                   후원 직후 짧은 피드백 질문으로 자연스럽게 연결됩니다.
                 </p>
               </div>

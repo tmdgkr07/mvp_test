@@ -2,12 +2,13 @@
 import { buildDashboard } from "@/lib/analytics";
 import { auth } from "@/lib/auth";
 import { getProjectById, listEvents, listFeedback, listProjects } from "@/lib/data-store";
+import { prisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
 
 export async function GET(request: Request) {
   const session = await auth();
-  
+
   if (!session?.user?.id) {
     return fail("UNAUTHORIZED", "로그인이 필요합니다.", 401);
   }
@@ -17,10 +18,16 @@ export async function GET(request: Request) {
 
   const allProjects = await listProjects();
   const userProjects = allProjects.filter(project => project.ownerId === session.user.id);
+  const userProjectIds = userProjects.map(p => p.id);
+
+  const waitlistCount = userProjectIds.length > 0
+    ? await prisma.waitlist.count({ where: { projectId: { in: userProjectIds } } })
+    : 0;
 
   if (!projectId) {
     return ok({
       projects: userProjects,
+      waitlistCount,
       dashboard: buildDashboard([], [])
     });
   }
@@ -37,5 +44,5 @@ export async function GET(request: Request) {
   const [events, feedback] = await Promise.all([listEvents(projectId), listFeedback(projectId)]);
   const dashboard = buildDashboard(events, feedback);
 
-  return ok({ project, projects: userProjects, dashboard });
+  return ok({ project, projects: userProjects, waitlistCount, dashboard });
 }
