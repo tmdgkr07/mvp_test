@@ -1,11 +1,5 @@
-﻿import type { AnalyticsEvent, Feedback, FunnelStage } from "@/lib/types";
-
-const STAGE_LABEL: Record<FunnelStage, string> = {
-  main_exposure: "메인 노출",
-  website_click: "웹사이트 클릭",
-  support_click: "후원 버튼 클릭",
-  feedback_submit: "피드백 제출"
-};
+import { FUNNEL_STAGE_META, FUNNEL_STAGE_ORDER } from "@/lib/funnel";
+import type { AnalyticsEvent, Feedback, FunnelStage } from "@/lib/types";
 
 function percentage(numerator: number, denominator: number): number {
   if (denominator <= 0) return 0;
@@ -54,30 +48,41 @@ export function buildDashboard(events: AnalyticsEvent[], feedback: Feedback[]) {
   const supportEvents = events.filter((e) => e.type === "support_button_click");
   const supportClick = supportEvents.length;
   const feedbackSubmit = events.filter((e) => e.type === "feedback_submit").length;
+  const stageCounts: Record<FunnelStage, number> = {
+    main_exposure: exposure,
+    website_click: websiteClick,
+    support_click: supportClick,
+    feedback_submit: feedbackSubmit
+  };
 
-  const funnel = [
-    { stage: STAGE_LABEL.main_exposure, key: "main_exposure", count: exposure },
-    { stage: STAGE_LABEL.website_click, key: "website_click", count: websiteClick },
-    { stage: STAGE_LABEL.support_click, key: "support_click", count: supportClick },
-    { stage: STAGE_LABEL.feedback_submit, key: "feedback_submit", count: feedbackSubmit }
-  ];
+  const funnel = FUNNEL_STAGE_ORDER.map((stage) => ({
+    stage: FUNNEL_STAGE_META[stage].label,
+    key: stage,
+    count: stageCounts[stage]
+  }));
 
   const dropOff = [
     {
-      from: STAGE_LABEL.main_exposure,
-      to: STAGE_LABEL.website_click,
+      from: FUNNEL_STAGE_META.main_exposure.label,
+      fromKey: "main_exposure" as const,
+      to: FUNNEL_STAGE_META.website_click.label,
+      toKey: "website_click" as const,
       lostUsers: Math.max(exposure - websiteClick, 0),
       rate: percentage(Math.max(exposure - websiteClick, 0), exposure)
     },
     {
-      from: STAGE_LABEL.website_click,
-      to: STAGE_LABEL.support_click,
+      from: FUNNEL_STAGE_META.website_click.label,
+      fromKey: "website_click" as const,
+      to: FUNNEL_STAGE_META.support_click.label,
+      toKey: "support_click" as const,
       lostUsers: Math.max(websiteClick - supportClick, 0),
       rate: percentage(Math.max(websiteClick - supportClick, 0), websiteClick)
     },
     {
-      from: STAGE_LABEL.support_click,
-      to: STAGE_LABEL.feedback_submit,
+      from: FUNNEL_STAGE_META.support_click.label,
+      fromKey: "support_click" as const,
+      to: FUNNEL_STAGE_META.feedback_submit.label,
+      toKey: "feedback_submit" as const,
       lostUsers: Math.max(supportClick - feedbackSubmit, 0),
       rate: percentage(Math.max(supportClick - feedbackSubmit, 0), supportClick)
     }
@@ -96,8 +101,9 @@ export function buildDashboard(events: AnalyticsEvent[], feedback: Feedback[]) {
   }
 
   const totalExits = sessionEnds.length;
-  const exitReport = (Object.keys(exitsByStage) as FunnelStage[]).map((stage) => ({
-    stage: STAGE_LABEL[stage],
+  const exitReport = FUNNEL_STAGE_ORDER.map((stage) => ({
+    stage: FUNNEL_STAGE_META[stage].label,
+    stageKey: stage,
     exits: exitsByStage[stage],
     rate: percentage(exitsByStage[stage], totalExits)
   }));

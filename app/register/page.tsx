@@ -1,9 +1,11 @@
+import type { Route } from "next";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import ProjectEditor from "@/components/ProjectEditor";
 import RegisterForm from "@/components/RegisterForm";
 import { auth } from "@/lib/auth";
+import { buildLoginHref } from "@/lib/auth-routing";
 import { getProjectById } from "@/lib/data-store";
 import { canManageProject } from "@/lib/permissions";
 
@@ -20,12 +22,17 @@ type RegisterPageProps = {
 
 export default async function RegisterPage({ searchParams }: RegisterPageProps) {
   const { edit } = await searchParams;
+  const session = await auth();
+  const callbackUrl = edit ? `/register?edit=${encodeURIComponent(edit)}` : "/register";
+
+  if (!session?.user?.id) {
+    redirect(buildLoginHref(callbackUrl) as Route);
+  }
 
   if (!edit) {
     return <RegisterForm />;
   }
 
-  const session = await auth();
   const project = await getProjectById(edit);
 
   if (!project || !canManageProject(session, project.ownerId)) {

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
 import { BarChart2, Bell, Download, ExternalLink, MessageSquare, Pencil, Plus, TrendingDown } from "lucide-react";
-import type { Feedback, Project } from "@/lib/types";
+import { FUNNEL_STAGE_ORDER, getFunnelStageMeta } from "@/lib/funnel";
 import {
   getDisplayStatusValue,
   getProjectStatusMeta,
@@ -13,6 +13,7 @@ import {
   type DisplayProjectStatus,
   type ProjectStatusTone
 } from "@/lib/project-status";
+import type { Feedback, FunnelStage, Project } from "@/lib/types";
 
 const ALL_PROJECTS_KEY = "__all__";
 
@@ -25,9 +26,9 @@ const STATUS_TONE_STYLES: Record<ProjectStatusTone, string> = {
 };
 
 type DashboardPayload = {
-  funnel: Array<{ stage: string; key: string; count: number }>;
-  dropOff: Array<{ from: string; to: string; lostUsers: number; rate: number }>;
-  exitReport: Array<{ stage: string; exits: number; rate: number }>;
+  funnel: Array<{ stage: string; key: FunnelStage; count: number }>;
+  dropOff: Array<{ from: string; fromKey: FunnelStage; to: string; toKey: FunnelStage; lostUsers: number; rate: number }>;
+  exitReport: Array<{ stage: string; stageKey: FunnelStage; exits: number; rate: number }>;
   avgSessionSeconds: number;
   totalSessions: number;
   feedback: Feedback[];
@@ -213,7 +214,11 @@ export default function BuilderDashboard() {
   });
 
   const totalVotes = useMemo(() => projects.reduce((sum, project) => sum + project.voteCount, 0), [projects]);
-
+  const maxFunnelCount = Math.max(...dashboard.funnel.map((item) => item.count), 1);
+  const funnelGuide = FUNNEL_STAGE_ORDER.map((stageKey) => ({
+    ...getFunnelStageMeta(stageKey),
+    count: dashboard.funnel.find((step) => step.key === stageKey)?.count ?? 0
+  }));
   return (
     <div className="min-h-screen bg-[#FAFAFA]">
       <div className="border-b border-[#EBEBEB] bg-white">
@@ -371,19 +376,25 @@ export default function BuilderDashboard() {
                   </div>
 
                   <div className="rounded-2xl border border-[#EBEBEB] bg-white p-5 shadow-sm">
-                    <p className="mb-4 text-xs font-bold uppercase tracking-wide text-gray-400">퍼널 요약</p>
+                    <div className="mb-4">
+                      <p className="text-xs font-bold uppercase tracking-wide text-gray-400">퍼널 요약</p>
+                      <p className="mt-2 text-sm text-gray-500">
+                        첫 단계인 <strong className="text-gray-700">프로젝트 노출</strong>는 밥주세요 홈 또는 탐색 화면에서
+                        서비스 카드가 사용자에게 보인 횟수입니다.
+                      </p>
+                    </div>
                     {dashboard.funnel.length === 0 ? (
                       <p className="py-4 text-center text-sm text-gray-400">아직 집계 데이터가 없습니다.</p>
                     ) : (
                       <div className="flex items-end gap-2">
                         {dashboard.funnel.map((step, index) => {
-                          const max = Math.max(...dashboard.funnel.map((item) => item.count), 1);
-                          const height = Math.max((step.count / max) * 120, 10);
+                          const meta = getFunnelStageMeta(step.key);
+                          const height = Math.max((step.count / maxFunnelCount) * 120, 10);
                           return (
-                            <div key={step.key} className="flex flex-1 flex-col items-center gap-1.5">
+                            <div key={step.key} className="flex flex-1 flex-col items-center gap-1.5" title={`${meta.label}: ${meta.description}`}>
                               <p className="text-xs font-bold text-gray-700">{step.count}</p>
                               <div className="w-full rounded-t-lg" style={{ height, backgroundColor: index === 0 ? "#FFDD59" : `rgba(255,221,89,${1 - index * 0.18})` }} />
-                              <p className="text-center text-[10px] leading-tight text-gray-400">{step.stage}</p>
+                              <p className="text-center text-[10px] leading-tight text-gray-400">{meta.shortLabel}</p>
                             </div>
                           );
                         })}
@@ -395,33 +406,86 @@ export default function BuilderDashboard() {
 
               {!panelLoading && activeTab === "funnel" && (
                 <div className="space-y-4">
+                  {false ? (
+                  <div className="rounded-2xl border border-[#F1E2A6] bg-[#FFFBE8] p-5 shadow-sm">
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <p className="text-xs font-bold uppercase tracking-wide text-[#9B7A00]">퍼널 읽는 법</p>
+                        <p className="mt-2 text-sm text-gray-600">
+                          각 단계가 무엇을 의미하는지 바로 이해할 수 있도록 설명을 함께 제공합니다.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 grid gap-3 md:grid-cols-2">
+                      {funnelGuide.map((step, index) => (
+                        <div key={step.key} className="rounded-2xl border border-[#F2E7BD] bg-white px-4 py-4">
+                          <div className="flex items-center justify-between gap-3">
+                            <div className="flex items-center gap-3">
+                              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#FFF1A8] text-sm font-black text-[#6B5300]">
+                                {index + 1}
+                              </span>
+                              <div>
+                                <p className="text-sm font-bold text-gray-900">{step.label}</p>
+                                <p className="text-xs text-gray-500">{step.helper}</p>
+                              </div>
+                            </div>
+                            <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-bold text-gray-700">
+                              {step.count}건
+                            </span>
+                          </div>
+                          <p className="mt-3 text-sm leading-6 text-gray-600">{step.description}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  ) : null}
+
                   <div className="rounded-2xl border border-[#EBEBEB] bg-white p-5 shadow-sm">
-                    <p className="mb-4 text-xs font-bold uppercase tracking-wide text-gray-400">단계별 전환</p>
+                    <div className="mb-4">
+                      <p className="text-xs font-bold uppercase tracking-wide text-gray-400">단계별 전환</p>
+                      <p className="mt-2 text-sm text-gray-500">퍼널 수치는 각 단계 이벤트가 기록된 누적 횟수 기준입니다.</p>
+                    </div>
                     {dashboard.funnel.length === 0 ? <p className="py-6 text-center text-sm text-gray-400">퍼널 데이터가 없습니다.</p> : (
                       <ul className="space-y-2">
-                        {dashboard.funnel.map((step) => (
-                          <li key={step.key} className="flex items-center justify-between rounded-xl bg-gray-50 px-4 py-3">
-                            <span className="text-sm font-semibold text-gray-700">{step.stage}</span>
-                            <strong className="text-sm font-black text-gray-900">{step.count}건</strong>
-                          </li>
-                        ))}
+                        {dashboard.funnel.map((step) => {
+                          const meta = getFunnelStageMeta(step.key);
+                          return (
+                            <li key={step.key} className="flex items-center justify-between gap-4 rounded-xl bg-gray-50 px-4 py-3">
+                              <div>
+                                <span className="text-sm font-semibold text-gray-700">{meta.label}</span>
+                                <p className="mt-1 text-xs text-gray-500">{meta.description}</p>
+                              </div>
+                              <strong className="shrink-0 text-sm font-black text-gray-900">{step.count}건</strong>
+                            </li>
+                          );
+                        })}
                       </ul>
                     )}
                   </div>
 
                   <div className="rounded-2xl border border-[#EBEBEB] bg-white p-5 shadow-sm">
-                    <p className="mb-4 text-xs font-bold uppercase tracking-wide text-gray-400">이탈 구간</p>
+                    <div className="mb-4">
+                      <p className="text-xs font-bold uppercase tracking-wide text-gray-400">이탈 구간</p>
+                      <p className="mt-2 text-sm text-gray-500">어느 단계에서 다음 행동으로 이어지지 않았는지 확인할 수 있습니다.</p>
+                    </div>
                     {dashboard.dropOff.length === 0 ? <p className="py-6 text-center text-sm text-gray-400">이탈 데이터가 없습니다.</p> : (
                       <ul className="space-y-2">
-                        {dashboard.dropOff.map((item, index) => (
-                          <li key={`${item.from}-${index}`} className="rounded-xl border border-red-100 bg-red-50 px-4 py-3">
-                            <div className="mb-1 flex items-center justify-between">
-                              <span className="text-sm font-bold text-red-800">{item.from} → {item.to}</span>
-                              <span className="text-xs font-bold text-red-600">{item.rate}%</span>
-                            </div>
-                            <p className="text-xs text-red-500">{item.lostUsers}명 이탈</p>
-                          </li>
-                        ))}
+                        {dashboard.dropOff.map((item, index) => {
+                          const fromMeta = getFunnelStageMeta(item.fromKey);
+                          const toMeta = getFunnelStageMeta(item.toKey);
+                          return (
+                            <li key={`${item.from}-${index}`} className="rounded-xl border border-red-100 bg-red-50 px-4 py-3">
+                              <div className="mb-1 flex items-center justify-between">
+                                <span className="text-sm font-bold text-red-800">{fromMeta.shortLabel} → {toMeta.shortLabel}</span>
+                                <span className="text-xs font-bold text-red-600">{item.rate}%</span>
+                              </div>
+                              <p className="text-xs text-red-500">
+                                {item.lostUsers}명이 "{fromMeta.label}" 이후 "{toMeta.label}"까지 이어지지 않았습니다.
+                              </p>
+                            </li>
+                          );
+                        })}
                       </ul>
                     )}
                   </div>
