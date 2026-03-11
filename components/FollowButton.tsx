@@ -1,12 +1,43 @@
 "use client";
 
 import type { Route } from "next";
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { useSession } from "next-auth/react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { buildLoginHref, buildPathWithSearch } from "@/lib/auth-routing";
 
 export default function FollowButton({
+  targetUserId,
+  initialIsFollowing,
+  followerCount
+}: {
+  targetUserId: string;
+  initialIsFollowing: boolean;
+  followerCount: number;
+}) {
+  return (
+    <Suspense
+      fallback={
+        <button
+          type="button"
+          disabled
+          className="inline-flex items-center gap-2 rounded-full border border-blue-700/50 bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-3 text-sm font-bold text-white opacity-50 shadow-md"
+        >
+          <span className="text-lg">+</span>
+          <span>Loading</span>
+        </button>
+      }
+    >
+      <FollowButtonContent
+        targetUserId={targetUserId}
+        initialIsFollowing={initialIsFollowing}
+        followerCount={followerCount}
+      />
+    </Suspense>
+  );
+}
+
+function FollowButtonContent({
   targetUserId,
   initialIsFollowing,
   followerCount
