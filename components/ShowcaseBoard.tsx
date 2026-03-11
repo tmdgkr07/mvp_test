@@ -10,7 +10,7 @@ import { Search, Trophy, MessageSquare, ExternalLink, Info } from "lucide-react"
 import { useSession } from "next-auth/react";
 import { getProjectStatusMeta, matchesDisplayStatusFilter, PROJECT_STATUS_OPTIONS, type ProjectStatusTone } from "@/lib/project-status";
 
-type SupportTierKey = "mini_tip" | "coffee" | "meal";
+type SupportTierKey = "starter" | "supporter" | "angel";
 
 type ApiResult<T> = {
   data?: T;
@@ -26,9 +26,9 @@ const STATUS_TONE_STYLES: Record<ProjectStatusTone, string> = {
 };
 
 const SUPPORT_TIERS: Array<{ key: SupportTierKey; label: string; amount: number }> = [
-  { key: "mini_tip", label: "미니팁", amount: 3000 },
-  { key: "coffee", label: "커피", amount: 5000 },
-  { key: "meal", label: "식사", amount: 10000 }
+  { key: "starter", label: "5 밥알", amount: 5000 },
+  { key: "supporter", label: "10 밥알", amount: 10000 },
+  { key: "angel", label: "30 밥알", amount: 30000 }
 ];
 
 type PendingFeedback = {

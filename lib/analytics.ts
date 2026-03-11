@@ -22,9 +22,9 @@ function getSupportAmount(event: AnalyticsEvent): number {
   return typeof raw === "number" ? raw : 0;
 }
 
-function getSupportTier(event: AnalyticsEvent): "mini_tip" | "coffee" | "meal" | "unknown" {
+function getSupportTier(event: AnalyticsEvent): "starter" | "supporter" | "angel" | "unknown" {
   const raw = event.metadata?.tier;
-  if (raw === "mini_tip" || raw === "coffee" || raw === "meal") {
+  if (raw === "starter" || raw === "supporter" || raw === "angel") {
     return raw;
   }
   return "unknown";
@@ -107,9 +107,9 @@ export function buildDashboard(events: AnalyticsEvent[], feedback: Feedback[]) {
   const estimatedAmount = supportEvents.reduce((sum, event) => sum + getSupportAmount(event), 0);
   const totalRice = Math.round(estimatedAmount / 1000);
   const tierLabels: Record<ReturnType<typeof getSupportTier>, string> = {
-    mini_tip: "미니팁",
-    coffee: "커피",
-    meal: "식사",
+    starter: "5 밥알",
+    supporter: "10 밥알",
+    angel: "30 밥알",
     unknown: "기타"
   };
   const tierBreakdown = Object.entries(
