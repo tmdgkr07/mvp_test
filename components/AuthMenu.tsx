@@ -7,6 +7,7 @@ import { Suspense } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 import { buildLoginHref, buildPathWithSearch } from "@/lib/auth-routing";
+import NotificationMenu from "@/components/NotificationMenu";
 
 export default function AuthMenu() {
   return (
@@ -101,6 +102,8 @@ function AuthMenuContent() {
           </div>
         </div>
       </div>
+
+      <NotificationMenu userId={data.user.id} />
 
       <button
         type="button"

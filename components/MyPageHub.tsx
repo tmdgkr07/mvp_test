@@ -5,13 +5,15 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import AccountSettingsHub from "@/components/AccountSettingsHub";
 import BillingSettingsHub from "@/components/BillingSettingsHub";
-import BuilderDashboard from "@/components/BuilderDashboard";
+import BuilderDashboard, { type BuilderDashboardTab } from "@/components/BuilderDashboard";
 import ServiceHub from "@/components/ServiceHub";
 
 export type HubKey = "platform" | "service" | "account" | "billing";
 
 type MyPageHubProps = {
   initialHub?: HubKey;
+  initialProjectId?: string;
+  initialPlatformTab?: BuilderDashboardTab;
 };
 
 const primaryHubItems: Array<{
@@ -54,7 +56,11 @@ const utilityHubItems: Array<{
   }
 ];
 
-export default function MyPageHub({ initialHub = "platform" }: MyPageHubProps) {
+export default function MyPageHub({
+  initialHub = "platform",
+  initialProjectId,
+  initialPlatformTab = "overview"
+}: MyPageHubProps) {
   const [activeHub, setActiveHub] = useState<HubKey>(initialHub);
 
   useEffect(() => {
@@ -131,7 +137,9 @@ export default function MyPageHub({ initialHub = "platform" }: MyPageHubProps) {
         </div>
       </div>
 
-      {activeHub === "platform" ? <BuilderDashboard /> : null}
+      {activeHub === "platform" ? (
+        <BuilderDashboard initialSelectedProjectId={initialProjectId} initialTab={initialPlatformTab} />
+      ) : null}
       {activeHub === "service" ? <ServiceHub /> : null}
       {activeHub === "account" ? <AccountSettingsHub /> : null}
       {activeHub === "billing" ? <BillingSettingsHub /> : null}

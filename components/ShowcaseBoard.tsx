@@ -2,11 +2,11 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type MouseEvent } from "react";
 import type { FunnelStage, Project } from "@/lib/types";
-import VoteButton from "@/components/VoteButton";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, Trophy, MessageSquare, ExternalLink, Info } from "lucide-react";
+import confetti from "canvas-confetti";
+import { Search, MessageSquare, ExternalLink, Info } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { getProjectStatusMeta, matchesDisplayStatusFilter, PROJECT_STATUS_OPTIONS, type ProjectStatusTone } from "@/lib/project-status";
 
@@ -65,6 +65,7 @@ export default function ShowcaseBoard({ initialProjects }: { initialProjects: Pr
   const [feedbackText, setFeedbackText] = useState("");
   const [feedbackStatus, setFeedbackStatus] = useState<string | null>(null);
   const [submittingFeedback, setSubmittingFeedback] = useState(false);
+  const [votingProjectIds, setVotingProjectIds] = useState<string[]>([]);
   const [activeFilter, setActiveFilter] = useState<string>("ALL");
   const [sortOrder, setSortOrder] = useState<"LATEST" | "POPULAR">("LATEST");
   const [searchQuery, setSearchQuery] = useState("");
@@ -228,6 +229,58 @@ export default function ShowcaseBoard({ initialProjects }: { initialProjects: Pr
     window.open(appendAmountToUrl(project.supportUrl, tier.amount), "_blank", "noopener,noreferrer");
   }
 
+  async function handleVoteClick(event: MouseEvent<HTMLButtonElement>, projectId: string) {
+    event.preventDefault();
+    event.stopPropagation();
+
+    if (votingProjectIds.includes(projectId)) {
+      return;
+    }
+
+    const rect = event.currentTarget.getBoundingClientRect();
+    const x = (rect.left + rect.width / 2) / window.innerWidth;
+    const y = (rect.top + rect.height / 2) / window.innerHeight;
+
+    confetti({
+      particleCount: 26,
+      spread: 58,
+      origin: { x, y },
+      colors: ["#E16A2F", "#FFB703", "#FFD166"]
+    });
+
+    setVotingProjectIds((current) => [...current, projectId]);
+    setProjects((current) =>
+      current.map((project) =>
+        project.id === projectId
+          ? { ...project, voteCount: (project.voteCount || 0) + 1 }
+          : project
+      )
+    );
+
+    try {
+      const response = await fetch(`/api/projects/${projectId}/vote`, { method: "POST" });
+      const payload = (await response.json()) as ApiResult<{ project: Project }>;
+
+      if (!response.ok || !payload.data?.project) {
+        throw new Error(payload.error?.message || "인기 투표에 실패했습니다.");
+      }
+
+      setProjects((current) =>
+        current.map((project) => (project.id === projectId ? payload.data!.project : project))
+      );
+    } catch {
+      setProjects((current) =>
+        current.map((project) =>
+          project.id === projectId
+            ? { ...project, voteCount: Math.max((project.voteCount || 1) - 1, 0) }
+            : project
+        )
+      );
+    } finally {
+      setVotingProjectIds((current) => current.filter((id) => id !== projectId));
+    }
+  }
+
   const featuredProject = projects.length > 0 ? (
     projects.find(p => p.ownerId && session?.user?.id && p.ownerId === session.user.id) ||
     [...projects].sort((a, b) => (b.voteCount || 0) - (a.voteCount || 0))[0]
@@ -377,9 +430,18 @@ export default function ShowcaseBoard({ initialProjects }: { initialProjects: Pr
                           className="object-cover transition-transform duration-500 group-hover:scale-105"
                           sizes="(max-width: 768px) 100vw, 33vw"
                         />
-                        <div className="absolute right-4 top-4 z-10 flex items-center gap-1.5 rounded-full bg-white px-3 py-1 text-xs font-bold shadow-btn border border-[#EBEBEB]">
+                        <motion.button
+                          type="button"
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.94 }}
+                          onClick={(event) => void handleVoteClick(event, project.id)}
+                          disabled={votingProjectIds.includes(project.id)}
+                          className="absolute right-4 top-4 z-10 flex items-center gap-1.5 rounded-full border border-[#EBEBEB] bg-white px-3 py-1 text-xs font-bold shadow-btn transition-all hover:-translate-y-0.5 hover:border-[#FFD27A] disabled:cursor-not-allowed disabled:opacity-70"
+                          aria-label={`${project.name} 인기 올리기`}
+                          title="클릭해서 인기 올리기"
+                        >
                           🔥 {project.voteCount || 0}
-                        </div>
+                        </motion.button>
                       </div>
 
                       <div className="p-5 space-y-4">
@@ -403,7 +465,7 @@ export default function ShowcaseBoard({ initialProjects }: { initialProjects: Pr
                           </p>
                         </div>
 
-                        <div className="flex gap-2">
+                        <div className="flex items-center gap-3">
                           <a
                             href={project.websiteUrl}
                             target="_blank"
@@ -412,28 +474,29 @@ export default function ShowcaseBoard({ initialProjects }: { initialProjects: Pr
                               markStage(project.id, "website_click");
                               void logEvent({ type: "website_click", projectId: project.id, metadata: { from: "main_card" } });
                             }}
-                            className="flex flex-1 items-center justify-center gap-1.5 rounded-full bg-ink hover:bg-ink/90 px-4 py-2.5 text-sm font-bold text-white transition-all hover:-translate-y-0.5"
+                            className="flex flex-1 items-center justify-center gap-2 rounded-full bg-ink px-4 py-4 text-base font-black text-white transition-all hover:-translate-y-0.5 hover:bg-ink/90"
                           >
-                            방문하기
+                            사이트 방문하기
                             <ExternalLink className="h-3.5 w-3.5" />
                           </a>
                           <Link
                             href={`/project/${project.id}`}
-                            className="flex items-center justify-center rounded-full border border-[#EBEBEB] hover:border-ink/20 px-3.5 py-2.5 text-ink-light bg-white transition-all hover:text-ink"
+                            className="flex h-[62px] min-w-[132px] shrink-0 items-center justify-center gap-2 rounded-full border border-[#E3E3E3] bg-white px-5 text-sm font-bold text-[#666666] transition-all hover:-translate-y-0.5 hover:border-[#CFCFCF] hover:text-ink"
                           >
                             <Info className="h-4 w-4" />
+                            자세히 보기
                           </Link>
                         </div>
 
-                        <div className="pt-4 border-t border-[#EBEBEB]">
-                          <p className="text-xs font-bold text-ink-light mb-2.5">🍚 밥알로 응원하기</p>
-                          <div className="grid grid-cols-3 gap-1.5">
+                        <div className="border-t border-[#EBEBEB] pt-4">
+                          <p className="mb-3 text-xs font-bold text-ink-light">🍚 밥알로 응원하기</p>
+                          <div className="grid grid-cols-3 gap-2">
                             {SUPPORT_TIERS.map((tier) => (
                               <button
                                 key={tier.key}
                                 type="button"
                                 onClick={() => handleSupportClick(project, tier)}
-                                className="rounded-full bg-[#FFF9C4] border border-[#FFE066] hover:bg-accent hover:border-accent px-2 py-2 text-xs font-bold text-[#8B6914] hover:text-ink transition-all hover:-translate-y-0.5"
+                                className="rounded-full border border-[#E7DA9A] bg-[#F8F0BF] px-3 py-2 text-sm font-black text-[#9A6D00] transition-all hover:-translate-y-0.5 hover:bg-[#FFF3B3] hover:border-[#DDCC7A]"
                               >
                                 {tier.label}
                               </button>

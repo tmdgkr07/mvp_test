@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 import { BarChart2, Bell, Download, ExternalLink, MessageSquare, Pencil, Plus, TrendingDown } from "lucide-react";
 import { FUNNEL_STAGE_ORDER, getFunnelStageMeta } from "@/lib/funnel";
@@ -47,7 +47,8 @@ type DashboardPayload = {
 };
 
 type WaitlistEntry = { email: string; createdAt: string; projectId: string };
-type Tab = "overview" | "funnel" | "feedback" | "waitlist" | "rice";
+export type BuilderDashboardTab = "overview" | "funnel" | "feedback" | "waitlist" | "rice";
+type Tab = BuilderDashboardTab;
 
 type DashboardResponse = {
   project?: Project;
@@ -77,6 +78,11 @@ const EMPTY_DASHBOARD: DashboardPayload = {
   }
 };
 
+type BuilderDashboardProps = {
+  initialSelectedProjectId?: string;
+  initialTab?: BuilderDashboardTab;
+};
+
 function formatCurrency(value: number) {
   return new Intl.NumberFormat("ko-KR", {
     style: "currency",
@@ -85,8 +91,12 @@ function formatCurrency(value: number) {
   }).format(value);
 }
 
-export default function BuilderDashboard() {
+export default function BuilderDashboard({
+  initialSelectedProjectId,
+  initialTab = "overview"
+}: BuilderDashboardProps) {
   const { data: session } = useSession();
+  const lastAppliedInitialProjectIdRef = useRef<string | undefined>(undefined);
   const [projects, setProjects] = useState<Project[]>([]);
   const [selectedKey, setSelectedKey] = useState<string>(ALL_PROJECTS_KEY);
   const [dashboard, setDashboard] = useState<DashboardPayload>(EMPTY_DASHBOARD);
@@ -96,10 +106,14 @@ export default function BuilderDashboard() {
   const [panelLoading, setPanelLoading] = useState(false);
   const [statusUpdating, setStatusUpdating] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<Tab>("overview");
+  const [activeTab, setActiveTab] = useState<Tab>(initialTab);
 
   const selectedProject = projects.find((project) => project.id === selectedKey);
   const isAggregateView = selectedKey === ALL_PROJECTS_KEY;
+
+  useEffect(() => {
+    setActiveTab(initialTab);
+  }, [initialTab]);
 
   useEffect(() => {
     async function bootstrap() {
@@ -115,7 +129,12 @@ export default function BuilderDashboard() {
         setWaitlistCount(payload.data.waitlistCount ?? 0);
         setWaitlist(payload.data.waitlist ?? []);
         setDashboard(payload.data.dashboard || EMPTY_DASHBOARD);
-        setSelectedKey(ALL_PROJECTS_KEY);
+        setSelectedKey(
+          initialSelectedProjectId && payload.data.projects.some((project) => project.id === initialSelectedProjectId)
+            ? initialSelectedProjectId
+            : ALL_PROJECTS_KEY
+        );
+        lastAppliedInitialProjectIdRef.current = initialSelectedProjectId;
       } catch (e) {
         setError(e instanceof Error ? e.message : "알 수 없는 오류가 발생했습니다.");
       } finally {
@@ -124,7 +143,21 @@ export default function BuilderDashboard() {
     }
 
     void bootstrap();
-  }, []);
+  }, [initialSelectedProjectId]);
+
+  useEffect(() => {
+    if (loading) return;
+    if (lastAppliedInitialProjectIdRef.current === initialSelectedProjectId) return;
+
+    lastAppliedInitialProjectIdRef.current = initialSelectedProjectId;
+
+    if (initialSelectedProjectId && projects.some((project) => project.id === initialSelectedProjectId)) {
+      setSelectedKey(initialSelectedProjectId);
+      return;
+    }
+
+    setSelectedKey(ALL_PROJECTS_KEY);
+  }, [initialSelectedProjectId, loading, projects]);
 
   useEffect(() => {
     if (loading) return;
@@ -191,7 +224,6 @@ export default function BuilderDashboard() {
     { id: "waitlist", label: `알림 신청${waitlist.length ? ` (${waitlist.length})` : ""}`, icon: <Bell className="h-4 w-4" /> },
     { id: "rice", label: `받은 밥알${dashboard.supportSummary.totalRice ? ` (${dashboard.supportSummary.totalRice})` : ""}`, icon: <span className="text-sm">🍚</span> }
   ];
-
   const summaryCards = [
     { label: "총 방문자 수", value: dashboard.totalSessions, sub: "총 세션 수", color: "text-blue-600" },
     { label: "평균 이용시간", value: `${dashboard.avgSessionSeconds}초`, sub: "세션 종료 기준", color: "text-violet-600" },
