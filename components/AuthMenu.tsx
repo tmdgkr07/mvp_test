@@ -1,11 +1,18 @@
 "use client";
 
+import type { Route } from "next";
 import Image from "next/image";
 import Link from "next/link";
-import { signIn, signOut, useSession } from "next-auth/react";
+import { usePathname, useSearchParams } from "next/navigation";
+import { signOut, useSession } from "next-auth/react";
+import { buildLoginHref, buildPathWithSearch } from "@/lib/auth-routing";
 
 export default function AuthMenu() {
   const { data, status } = useSession();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const currentPath = buildPathWithSearch(pathname || "/", searchParams);
+  const loginHref = (pathname === "/login" ? "/login" : buildLoginHref(currentPath)) as Route;
 
   if (status === "loading") {
     return <span className="text-sm font-medium text-ink-light">...</span>;
@@ -13,13 +20,12 @@ export default function AuthMenu() {
 
   if (!data?.user) {
     return (
-      <button
-        type="button"
-        onClick={() => signIn("google")}
+      <Link
+        href={loginHref}
         className="rounded-full border-2 border-[#EBEBEB] bg-white px-5 py-2.5 text-sm font-bold text-ink transition-all duration-200 hover:-translate-y-0.5 hover:border-ink/30"
       >
         {"\uB85C\uADF8\uC778"}
-      </button>
+      </Link>
     );
   }
 
