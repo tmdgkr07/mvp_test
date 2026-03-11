@@ -14,3 +14,5 @@ README.md
 readme.md
 .vercel
 .cursor
+.codex-dev.log
+.codex-dev.err.log

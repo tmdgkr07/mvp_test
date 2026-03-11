@@ -2,14 +2,17 @@
 
 import { Blocks, CreditCard, LayoutDashboard, UserCog } from "lucide-react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import AccountSettingsHub from "@/components/AccountSettingsHub";
 import BillingSettingsHub from "@/components/BillingSettingsHub";
 import BuilderDashboard from "@/components/BuilderDashboard";
 import ServiceHub from "@/components/ServiceHub";
 
-type HubKey = "platform" | "service" | "account" | "billing";
+export type HubKey = "platform" | "service" | "account" | "billing";
+
+type MyPageHubProps = {
+  initialHub?: HubKey;
+};
 
 const primaryHubItems: Array<{
   key: Extract<HubKey, "platform" | "service">;
@@ -51,16 +54,12 @@ const utilityHubItems: Array<{
   }
 ];
 
-export default function MyPageHub() {
-  const searchParams = useSearchParams();
-  const [activeHub, setActiveHub] = useState<HubKey>("platform");
+export default function MyPageHub({ initialHub = "platform" }: MyPageHubProps) {
+  const [activeHub, setActiveHub] = useState<HubKey>(initialHub);
 
   useEffect(() => {
-    const hub = searchParams.get("hub");
-    if (hub === "platform" || hub === "service" || hub === "account" || hub === "billing") {
-      setActiveHub(hub);
-    }
-  }, [searchParams]);
+    setActiveHub(initialHub);
+  }, [initialHub]);
 
   return (
     <div className="min-h-screen bg-[#FAFAFA]">
