@@ -2,11 +2,11 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
+import { useDeferredValue, useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
 import type { FunnelStage, Project } from "@/lib/types";
-import VoteButton from "@/components/VoteButton";
 import { motion, AnimatePresence } from "framer-motion";
-import { RotateCcw, Search, MessageSquare, ExternalLink, Info } from "lucide-react";
+import confetti from "canvas-confetti";
+import { RotateCcw, Search, MessageSquare, ExternalLink } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { getProjectStatusMeta, matchesDisplayStatusFilter, PROJECT_STATUS_OPTIONS, type ProjectStatusTone } from "@/lib/project-status";
 
@@ -58,7 +58,8 @@ function appendAmountToUrl(urlValue: string, amount: number): string {
 
 export default function ShowcaseBoard({ initialProjects }: { initialProjects: Project[] }) {
   const { data: session } = useSession();
-  const projects = initialProjects;
+  const [projects, setProjects] = useState(initialProjects);
+  const [votingProjectIds, setVotingProjectIds] = useState<string[]>([]);
   const [feedbackTarget, setFeedbackTarget] = useState<PendingFeedback | null>(null);
   const [feedbackText, setFeedbackText] = useState("");
   const [feedbackStatus, setFeedbackStatus] = useState<string | null>(null);
@@ -102,6 +103,10 @@ export default function ShowcaseBoard({ initialProjects }: { initialProjects: Pr
     stageByProjectRef.current[projectId] = stage;
     lastActiveProjectRef.current = projectId;
   }
+
+  useEffect(() => {
+    setProjects(initialProjects);
+  }, [initialProjects]);
 
   useEffect(() => {
     const sessionId = ensureSessionId();
@@ -188,6 +193,56 @@ export default function ShowcaseBoard({ initialProjects }: { initialProjects: Pr
       setFeedbackStatus(submitError instanceof Error ? submitError.message : "오류가 발생했습니다.");
     } finally {
       setSubmittingFeedback(false);
+    }
+  }
+
+  async function handleVoteClick(event: MouseEvent<HTMLButtonElement>, projectId: string) {
+    event.preventDefault();
+    event.stopPropagation();
+
+    if (votingProjectIds.includes(projectId)) {
+      return;
+    }
+
+    const rect = event.currentTarget.getBoundingClientRect();
+    const x = (rect.left + rect.width / 2) / window.innerWidth;
+    const y = (rect.top + rect.height / 2) / window.innerHeight;
+
+    confetti({
+      particleCount: 40,
+      spread: 70,
+      origin: { x, y },
+      colors: ["#FFB84D", "#FFE066", "#FFF3BF"]
+    });
+
+    setVotingProjectIds((current) => [...current, projectId]);
+    setProjects((current) =>
+      current.map((project) =>
+        project.id === projectId ? { ...project, voteCount: (project.voteCount || 0) + 1 } : project
+      )
+    );
+
+    try {
+      const response = await fetch(`/api/projects/${projectId}/vote`, { method: "POST" });
+      const payload = (await response.json()) as ApiResult<{ project: Project }>;
+
+      if (!response.ok) {
+        throw new Error(payload.error?.message || "투표에 실패했습니다.");
+      }
+
+      if (payload.data?.project) {
+        setProjects((current) =>
+          current.map((project) => (project.id === projectId ? payload.data!.project : project))
+        );
+      }
+    } catch {
+      setProjects((current) =>
+        current.map((project) =>
+          project.id === projectId ? { ...project, voteCount: Math.max((project.voteCount || 1) - 1, 0) } : project
+        )
+      );
+    } finally {
+      setVotingProjectIds((current) => current.filter((id) => id !== projectId));
     }
   }
 
@@ -405,9 +460,19 @@ export default function ShowcaseBoard({ initialProjects }: { initialProjects: Pr
                           className="object-cover transition-transform duration-500 group-hover:scale-105"
                           sizes="(max-width: 768px) 100vw, 33vw"
                         />
-                        <div className="absolute right-4 top-4 z-10 flex items-center gap-1.5 rounded-full bg-white px-3 py-1 text-xs font-bold shadow-btn border border-[#EBEBEB]">
-                          🔥 {project.voteCount || 0}
-                        </div>
+                        <motion.button
+                          type="button"
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.94 }}
+                          onClick={(event) => void handleVoteClick(event, project.id)}
+                          disabled={votingProjectIds.includes(project.id)}
+                          className="absolute right-4 top-4 z-10 flex items-center gap-2 rounded-full border border-[#FFD27A] bg-white/95 px-3.5 py-2 text-xs font-black text-[#8B6914] shadow-btn backdrop-blur transition-all hover:-translate-y-0.5 hover:border-[#FFC44D] hover:bg-[#FFF8E1] disabled:cursor-not-allowed disabled:opacity-70"
+                          aria-label={`${project.name} 인기 올리기, 현재 ${project.voteCount || 0}`}
+                          title="클릭해서 인기 올리기"
+                        >
+                          <span aria-hidden="true">🔥</span>
+                          <span>인기 {project.voteCount || 0}</span>
+                        </motion.button>
                       </div>
 
                       <div className="p-5 space-y-4">
@@ -431,7 +496,7 @@ export default function ShowcaseBoard({ initialProjects }: { initialProjects: Pr
                           </p>
                         </div>
 
-                        <div className="flex gap-2">
+                        <div className="flex items-center gap-3">
                           <a
                             href={project.websiteUrl}
                             target="_blank"
@@ -440,16 +505,16 @@ export default function ShowcaseBoard({ initialProjects }: { initialProjects: Pr
                               markStage(project.id, "website_click");
                               void logEvent({ type: "website_click", projectId: project.id, metadata: { from: "main_card" } });
                             }}
-                            className="flex flex-1 items-center justify-center gap-1.5 rounded-full bg-ink hover:bg-ink/90 px-4 py-2.5 text-sm font-bold text-white transition-all hover:-translate-y-0.5"
+                            className="flex flex-1 items-center justify-center gap-2 rounded-full bg-ink px-4 py-4 text-base font-black text-white transition-all hover:-translate-y-0.5 hover:bg-ink/90"
                           >
                             방문하기
                             <ExternalLink className="h-3.5 w-3.5" />
                           </a>
                           <Link
                             href={`/project/${project.id}`}
-                            className="flex items-center justify-center rounded-full border border-[#EBEBEB] hover:border-ink/20 px-3.5 py-2.5 text-ink-light bg-white transition-all hover:text-ink"
+                            className="flex h-[62px] min-w-[132px] shrink-0 items-center justify-center rounded-full border border-[#E3E3E3] bg-white px-5 text-sm font-bold text-[#666666] transition-all hover:-translate-y-0.5 hover:border-[#CFCFCF] hover:text-ink"
                           >
-                            <Info className="h-4 w-4" />
+                            자세히 보기
                           </Link>
                         </div>
 
