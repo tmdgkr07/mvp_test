@@ -1,0 +1,23 @@
+{
+  "name": "@mvp-platform/widget-cdn",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -H 127.0.0.1 -p 3100",
+    "build": "next build",
+    "start": "next start -H 127.0.0.1 -p 3100",
+    "typecheck": "tsc --noEmit --incremental false"
+  },
+  "dependencies": {
+    "@mvp-platform/shared": "file:../../packages/shared",
+    "next": "^15.5.10",
+    "react": "18.3.1",
+    "react-dom": "18.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "22.13.10",
+    "@types/react": "18.3.20",
+    "@types/react-dom": "18.3.6",
+    "typescript": "5.8.2"
+  }
+}

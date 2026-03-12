@@ -1,42 +1,29 @@
 {
-    "name": "mvp-showcase-web",
-    "version": "0.2.0",
-    "private": true,
-    "scripts": {
-        "dev": "next dev",
-        "build": "prisma generate && next build",
-        "start": "next start",
-        "lint": "next lint",
-        "typecheck": "tsc --noEmit --incremental false",
-        "db:generate": "prisma generate",
-        "db:migrate": "prisma migrate dev",
-        "db:deploy": "prisma migrate deploy",
-        "db:push": "prisma db push",
-        "migrate:json": "node scripts/migrate-json-to-db.mjs"
-    },
-    "dependencies": {
-        "@auth/prisma-adapter": "^2.8.0",
-        "@prisma/client": "^5.22.0",
-        "@types/canvas-confetti": "^1.9.0",
-        "canvas-confetti": "^1.9.4",
-        "framer-motion": "^12.35.0",
-        "lucide-react": "^0.577.0",
-        "next": "^15.5.10",
-        "next-auth": "^5.0.0-beta.25",
-        "react": "18.3.1",
-        "react-dom": "18.3.1",
-        "react-markdown": "^10.1.0",
-        "rehype-sanitize": "^6.0.0",
-        "remark-gfm": "^4.0.1"
-    },
-    "devDependencies": {
-        "@types/node": "22.13.10",
-        "@types/react": "18.3.20",
-        "@types/react-dom": "18.3.6",
-        "autoprefixer": "10.4.20",
-        "postcss": "8.5.2",
-        "prisma": "^5.22.0",
-        "tailwindcss": "3.4.17",
-        "typescript": "5.8.2"
-    }
+  "name": "mvp-platform",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "concurrently -k -n dashboard,api,widget \"npm run dev:dashboard\" \"npm run dev:api\" \"npm run dev:widget\"",
+    "dev:dashboard": "npm run dev --workspace @mvp-platform/dashboard-web",
+    "dev:api": "npm run dev --workspace @mvp-platform/public-api",
+    "dev:widget": "npm run dev --workspace @mvp-platform/widget-cdn",
+    "build": "npm run build --workspace @mvp-platform/dashboard-web && npm run build --workspace @mvp-platform/public-api && npm run build --workspace @mvp-platform/widget-cdn",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "start:dashboard": "npm run start --workspace @mvp-platform/dashboard-web",
+    "start:api": "npm run start --workspace @mvp-platform/public-api",
+    "start:widget": "npm run start --workspace @mvp-platform/widget-cdn",
+    "db:generate": "npm run db:generate --workspace @mvp-platform/dashboard-web",
+    "db:push": "npm run db:push --workspace @mvp-platform/dashboard-web",
+    "db:secure": "npm run db:secure --workspace @mvp-platform/dashboard-web"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  }
 }

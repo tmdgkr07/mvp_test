@@ -1,0 +1,86 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: #FFFFFF;
+  --ink: #1A1A1A;
+  --accent: #FFDD00;
+  --support: #0c6a6d;
+  --paper: #ffffff;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+    box-sizing: border-box;
+  }
+  body {
+    @apply bg-canvas text-ink antialiased;
+    font-family: var(--font-manrope), var(--font-noto-sans-kr), sans-serif;
+  }
+}
+
+@layer components {
+  .glass {
+    @apply bg-white/70 backdrop-blur-xl border border-white/20;
+  }
+
+  .glass-dark {
+    @apply bg-ink/80 backdrop-blur-xl border border-white/10;
+  }
+
+  .text-gradient {
+    @apply bg-gradient-to-r from-ink via-accent to-ink bg-clip-text text-transparent bg-[length:200%_auto] animate-gradient;
+  }
+
+  .btn-primary {
+    @apply rounded-full bg-accent hover:bg-accent-dark text-ink font-bold px-6 py-3 transition-all duration-200 shadow-btn hover:shadow-card-hover hover:-translate-y-0.5 active:translate-y-0;
+  }
+
+  .btn-secondary {
+    @apply rounded-full border-2 border-border hover:border-ink/30 bg-white text-ink font-bold px-6 py-3 transition-all duration-200;
+  }
+
+  .card {
+    @apply rounded-3xl border border-border bg-white shadow-card hover:shadow-card-hover transition-all duration-300 hover:-translate-y-1;
+  }
+}
+
+@keyframes gradient {
+  0% { background-position: 0% center; }
+  50% { background-position: 100% center; }
+  100% { background-position: 0% center; }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-8px); }
+}
+
+.animate-gradient {
+  animation: gradient 8s linear infinite;
+}
+
+.animate-float {
+  animation: float 4s ease-in-out infinite;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  @apply bg-ink/10 rounded-full hover:bg-ink/20 transition-colors;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+/* Selection */
+::selection {
+  background: #FFDD0050;
+  color: #1A1A1A;
+}
