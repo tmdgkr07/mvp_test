@@ -101,7 +101,7 @@ export default async function ProjectDetailPage({ params }: Props) {
                   )}
                 </div>
 
-                <div className="flex items-center gap-3">
+                <div className="flex flex-wrap items-center gap-3">
                   <VoteButton projectId={project.id} initialVotes={project.voteCount || 0} />
                   <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-white/60 backdrop-blur-sm border border-slate-200/50 text-sm font-semibold text-slate-700 shadow-sm">
                     <span>💬</span>
@@ -200,7 +200,7 @@ export default async function ProjectDetailPage({ params }: Props) {
               className="flex flex-1 sm:flex-none sm:w-48 items-center justify-center gap-2 px-8 py-4 rounded-2xl font-bold text-lg text-white bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 shadow-xl hover:shadow-2xl transition-all hover:-translate-y-1 group border border-amber-500/50"
             >
               <span>후원하기</span>
-              <span className="group-hover:scale-110 transition-transform text-xl">☕</span>
+              <span className="group-hover:scale-110 transition-transform text-xl">🍚</span>
             </a>
           </div>
         </div>

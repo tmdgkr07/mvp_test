@@ -1,4 +1,4 @@
-﻿import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/prisma";
 import type { AnalyticsEvent, CreateProjectInput, Feedback, Project, Sentiment, UpdateProjectInput } from "@/lib/types";
 import { createSlug, parseMetadata, toISOStringSafe } from "@/lib/utils";
 
@@ -156,7 +156,6 @@ export async function voteProject(id: string): Promise<Project | undefined> {
 
   return mapProject(row as any);
 }
-
 
 export async function softDeleteProject(id: string, actorId: string): Promise<Project | undefined> {
   const existing = await prisma.project.findFirst({ where: { id, deletedAt: null } });
