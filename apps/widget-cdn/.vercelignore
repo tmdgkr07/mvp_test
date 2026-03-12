@@ -1,0 +1,8 @@
+.env
+.env.*
+remember.md
+.codex-protocol
+.codex-dev.log
+.codex-dev.err.log
+start.out.log
+start.err.log
