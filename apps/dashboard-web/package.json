@@ -12,6 +12,7 @@
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
     "db:push": "prisma db push",
+    "db:secure": "node scripts/db-secure.mjs",
     "migrate:json": "node scripts/migrate-json-to-db.mjs"
   },
   "dependencies": {

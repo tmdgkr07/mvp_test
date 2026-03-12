@@ -17,7 +17,8 @@
     "start:api": "npm run start --workspace @mvp-platform/public-api",
     "start:widget": "npm run start --workspace @mvp-platform/widget-cdn",
     "db:generate": "npm run db:generate --workspace @mvp-platform/dashboard-web",
-    "db:push": "npm run db:push --workspace @mvp-platform/dashboard-web"
+    "db:push": "npm run db:push --workspace @mvp-platform/dashboard-web",
+    "db:secure": "npm run db:secure --workspace @mvp-platform/dashboard-web"
   },
   "devDependencies": {
     "concurrently": "^9.2.1"
