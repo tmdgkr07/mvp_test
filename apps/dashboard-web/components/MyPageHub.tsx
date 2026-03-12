@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import AccountSettingsHub from "@/components/AccountSettingsHub";
 import BillingSettingsHub from "@/components/BillingSettingsHub";
-import BuilderDashboard from "@/components/BuilderDashboard";
+import BuilderDashboard, { type BuilderDashboardTab } from "@/components/BuilderDashboard";
 import ServiceHub from "@/components/ServiceHub";
 import type { BuilderDashboardBootstrapData } from "@/lib/platform-hub";
 import type { ServiceHubBootstrapData } from "@/lib/service-hub";
@@ -15,6 +15,8 @@ export type HubKey = "platform" | "service" | "account" | "billing";
 
 type MyPageHubProps = {
   initialHub?: HubKey;
+  initialProjectId?: string;
+  initialPlatformTab?: BuilderDashboardTab;
   showAdminLink?: boolean;
   platformHubInitialData?: BuilderDashboardBootstrapData | null;
   serviceHubInitialData?: ServiceHubBootstrapData | null;
@@ -62,6 +64,8 @@ const utilityHubItems: Array<{
 
 export default function MyPageHub({
   initialHub = "platform",
+  initialProjectId,
+  initialPlatformTab = "overview",
   showAdminLink = false,
   platformHubInitialData = null,
   serviceHubInitialData = null
@@ -73,8 +77,17 @@ export default function MyPageHub({
   }, [initialHub]);
 
   useEffect(() => {
-    const nextUrl = activeHub === "platform" ? "/dashboard" : `/dashboard?hub=${activeHub}`;
-    window.history.replaceState(null, "", nextUrl);
+    const url = new URL(window.location.href);
+    url.pathname = "/dashboard";
+
+    if (activeHub === "platform") {
+      url.searchParams.delete("hub");
+    } else {
+      url.search = "";
+      url.searchParams.set("hub", activeHub);
+    }
+
+    window.history.replaceState(null, "", `${url.pathname}${url.search}`);
   }, [activeHub]);
 
   return (
@@ -155,7 +168,13 @@ export default function MyPageHub({
         </div>
       </div>
 
-      {activeHub === "platform" ? <BuilderDashboard initialData={platformHubInitialData} /> : null}
+      {activeHub === "platform" ? (
+        <BuilderDashboard
+          initialData={platformHubInitialData}
+          initialSelectedProjectId={initialProjectId}
+          initialTab={initialPlatformTab}
+        />
+      ) : null}
       {activeHub === "service" ? <ServiceHub initialData={serviceHubInitialData} /> : null}
       {activeHub === "account" ? <AccountSettingsHub /> : null}
       {activeHub === "billing" ? <BillingSettingsHub /> : null}

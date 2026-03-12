@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
+import NotificationMenu from "@/components/NotificationMenu";
 import { buildLoginHref } from "@/lib/auth-routing";
 
 export default function AuthMenu() {
@@ -91,6 +92,8 @@ export default function AuthMenu() {
           </div>
         </div>
       </div>
+
+      <NotificationMenu userId={data.user.id} />
 
       <button
         type="button"

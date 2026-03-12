@@ -28,6 +28,7 @@ const STATUS_TONE_STYLES: Record<ProjectStatusTone, string> = {
 };
 
 type Tab = "overview" | "funnel" | "feedback" | "waitlist" | "rice";
+export type BuilderDashboardTab = Tab;
 type QuickAction =
   | {
       key: string;
@@ -53,6 +54,12 @@ type ApiResult<T> = {
   error?: { code: string; message: string };
 };
 
+type BuilderDashboardProps = {
+  initialData?: BuilderDashboardBootstrapData | null;
+  initialSelectedProjectId?: string;
+  initialTab?: BuilderDashboardTab;
+};
+
 const EMPTY_DASHBOARD: DashboardPayload = {
   funnel: [],
   dropOff: [],
@@ -76,8 +83,13 @@ function formatCurrency(value: number) {
   }).format(value);
 }
 
-export default function BuilderDashboard({ initialData = null }: { initialData?: BuilderDashboardBootstrapData | null }) {
+export default function BuilderDashboard({
+  initialData = null,
+  initialSelectedProjectId,
+  initialTab = "overview"
+}: BuilderDashboardProps) {
   const { data: session } = useSession();
+  const lastAppliedInitialProjectIdRef = useRef<string | undefined>(undefined);
   const dashboardCacheRef = useRef<Record<string, DashboardPayload>>(
     initialData ? { [ALL_PROJECTS_KEY]: initialData.dashboard } : {}
   );
@@ -93,10 +105,14 @@ export default function BuilderDashboard({ initialData = null }: { initialData?:
   const [panelLoading, setPanelLoading] = useState(false);
   const [statusUpdating, setStatusUpdating] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<Tab>("overview");
+  const [activeTab, setActiveTab] = useState<Tab>(initialTab);
 
   const selectedProject = projects.find((project) => project.id === selectedKey);
   const isAggregateView = selectedKey === ALL_PROJECTS_KEY;
+
+  useEffect(() => {
+    setActiveTab(initialTab);
+  }, [initialTab]);
 
   useEffect(() => {
     if (initialData) {
@@ -106,7 +122,12 @@ export default function BuilderDashboard({ initialData = null }: { initialData?:
       setWaitlistCount(initialData.waitlistCount ?? 0);
       setDashboard(initialData.dashboard ?? EMPTY_DASHBOARD);
       setWaitlist(initialData.waitlist ?? []);
-      setSelectedKey(ALL_PROJECTS_KEY);
+      setSelectedKey(
+        initialSelectedProjectId && initialData.projects.some((project) => project.id === initialSelectedProjectId)
+          ? initialSelectedProjectId
+          : ALL_PROJECTS_KEY
+      );
+      lastAppliedInitialProjectIdRef.current = initialSelectedProjectId;
       setError(null);
       setLoading(false);
       return;
@@ -133,7 +154,12 @@ export default function BuilderDashboard({ initialData = null }: { initialData?:
         setWaitlistCount(payload.data.waitlistCount ?? 0);
         setWaitlist(payload.data.waitlist ?? []);
         setDashboard(payload.data.dashboard || EMPTY_DASHBOARD);
-        setSelectedKey(ALL_PROJECTS_KEY);
+        setSelectedKey(
+          initialSelectedProjectId && payload.data.projects.some((project) => project.id === initialSelectedProjectId)
+            ? initialSelectedProjectId
+            : ALL_PROJECTS_KEY
+        );
+        lastAppliedInitialProjectIdRef.current = initialSelectedProjectId;
       } catch (e) {
         if (!cancelled) {
           setError(e instanceof Error ? e.message : "알 수 없는 오류가 발생했습니다.");
@@ -150,10 +176,24 @@ export default function BuilderDashboard({ initialData = null }: { initialData?:
     return () => {
       cancelled = true;
     };
-  }, [initialData]);
+  }, [initialData, initialSelectedProjectId]);
 
   useEffect(() => {
     if (loading) return;
+
+    if (lastAppliedInitialProjectIdRef.current !== initialSelectedProjectId) {
+      lastAppliedInitialProjectIdRef.current = initialSelectedProjectId;
+
+      if (initialSelectedProjectId && projects.some((project) => project.id === initialSelectedProjectId)) {
+        setSelectedKey(initialSelectedProjectId);
+        return;
+      }
+
+      if (!initialSelectedProjectId && selectedKey !== ALL_PROJECTS_KEY) {
+        setSelectedKey(ALL_PROJECTS_KEY);
+        return;
+      }
+    }
 
     const cacheKey = isAggregateView ? ALL_PROJECTS_KEY : selectedKey;
     const cachedDashboard = dashboardCacheRef.current[cacheKey];
@@ -192,7 +232,29 @@ export default function BuilderDashboard({ initialData = null }: { initialData?:
     }
 
     void fetchDashboard();
-  }, [isAggregateView, loading, selectedKey]);
+  }, [initialSelectedProjectId, isAggregateView, loading, projects, selectedKey]);
+
+  useEffect(() => {
+    if (loading) return;
+
+    const url = new URL(window.location.href);
+    url.pathname = "/dashboard";
+    url.searchParams.delete("hub");
+
+    if (selectedKey !== ALL_PROJECTS_KEY) {
+      url.searchParams.set("projectId", selectedKey);
+    } else {
+      url.searchParams.delete("projectId");
+    }
+
+    if (activeTab !== "overview") {
+      url.searchParams.set("tab", activeTab);
+    } else {
+      url.searchParams.delete("tab");
+    }
+
+    window.history.replaceState(null, "", `${url.pathname}${url.search}`);
+  }, [activeTab, loading, selectedKey]);
 
   async function updateSelectedProjectStatus(nextStatus: DisplayProjectStatus) {
     if (!selectedProject || getDisplayStatusValue(selectedProject.status) === nextStatus) {
