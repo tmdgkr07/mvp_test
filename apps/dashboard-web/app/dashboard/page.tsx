@@ -1,17 +1,17 @@
-import type { Route } from "next";
 import type { Metadata } from "next";
+import type { Route } from "next";
 import { redirect } from "next/navigation";
+import type { BuilderDashboardTab } from "@/components/BuilderDashboard";
 import MyPageHub, { type HubKey } from "@/components/MyPageHub";
 import { auth } from "@/lib/auth";
 import { buildLoginHref } from "@/lib/auth-routing";
-import { isAdminEmail } from "@/lib/permissions";
+import { getUserRole } from "@/lib/permissions";
 import { getPlatformHubBootstrap } from "@/lib/platform-hub";
 import { getServiceHubBootstrap } from "@/lib/service-hub";
-import type { BuilderDashboardTab } from "@/components/BuilderDashboard";
 
 export const metadata: Metadata = {
-  title: "마이페이지 | 밥주세요",
-  description: "내 MVP 목록과 유입/전환/피드백 데이터를 확인하세요"
+  title: "워크스페이스 | 밥주세요",
+  description: "내 서비스 운영과 설정을 관리하는 워크스페이스"
 };
 
 export const preferredRegion = "icn1";
@@ -76,13 +76,16 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
     redirect(buildLoginHref(callbackUrl) as Route);
   }
 
+  const userRole = getUserRole(session);
   const platformHubInitialData = resolvedHub === "platform" ? await getPlatformHubBootstrap(session) : null;
   const serviceHubInitialData = resolvedHub === "service" ? await getServiceHubBootstrap(session) : null;
+  const isAdmin = Boolean(session.user.isAdmin || session.user.role === "admin" || userRole === "admin");
 
   return (
     <MyPageHub
       initialHub={resolvedHub}
-      showAdminLink={isAdminEmail(session.user.email)}
+      userRole={isAdmin ? "admin" : "creator"}
+      showAdminLink={isAdmin}
       initialProjectId={resolvedHub === "platform" ? resolvedProjectId : undefined}
       initialPlatformTab={resolvedHub === "platform" ? resolvedPlatformTab : "overview"}
       platformHubInitialData={platformHubInitialData}

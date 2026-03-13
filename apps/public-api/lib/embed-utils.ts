@@ -28,6 +28,32 @@ function trimBaseUrl(value: string): string {
   return value.replace(/\/$/, "");
 }
 
+function buildLocalServiceBaseUrl(request: Request, port: number) {
+  const url = new URL(request.url);
+  if (!isLocalDevelopmentHostname(url.hostname)) {
+    return "";
+  }
+
+  url.port = String(port);
+  return trimBaseUrl(url.origin);
+}
+
+function isLocalDevelopmentHostname(hostname: string): boolean {
+  return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1" || hostname === "[::1]";
+}
+
+function assertAllowedOriginProtocol(url: URL) {
+  if (url.protocol === "https:") {
+    return;
+  }
+
+  if (url.protocol === "http:" && isLocalDevelopmentHostname(url.hostname)) {
+    return;
+  }
+
+  throw new Error("Only https origins are allowed outside local development.");
+}
+
 export function buildAppBaseUrl(request: Request): string {
   if (process.env.PUBLIC_SITE_URL) {
     return trimBaseUrl(process.env.PUBLIC_SITE_URL);
@@ -41,12 +67,22 @@ export function buildEmbedPublicUrl(request: Request): string {
     return trimBaseUrl(process.env.EMBED_PUBLIC_URL);
   }
 
+  const localWidgetBaseUrl = buildLocalServiceBaseUrl(request, 3100);
+  if (localWidgetBaseUrl) {
+    return localWidgetBaseUrl;
+  }
+
   return buildAppBaseUrl(request);
 }
 
 export function buildEmbedApiBaseUrl(request: Request): string {
   if (process.env.EMBED_API_BASE_URL) {
     return trimBaseUrl(process.env.EMBED_API_BASE_URL);
+  }
+
+  const localApiBaseUrl = buildLocalServiceBaseUrl(request, 3200);
+  if (localApiBaseUrl) {
+    return localApiBaseUrl;
   }
 
   return buildAppBaseUrl(request);
@@ -77,8 +113,14 @@ export function normalizeOrigin(value: string): string {
   }
 
   try {
-    return new URL(target).origin;
+    const url = new URL(target);
+    assertAllowedOriginProtocol(url);
+    return url.origin;
   } catch (error) {
+    if (error instanceof Error) {
+      throw error;
+    }
+
     throw new Error("origin 값이 올바른 URL이 아닙니다.");
   }
 }
@@ -94,6 +136,7 @@ export function normalizeHttpUrl(value: string): string {
     throw new Error("http/https URL만 허용합니다.");
   }
 
+  assertAllowedOriginProtocol(url);
   return url.toString();
 }
 
@@ -105,7 +148,7 @@ export function normalizeOptionalOrigin(value: unknown): string {
 
   try {
     return normalizeOrigin(target);
-  } catch (error) {
+  } catch {
     return "";
   }
 }
@@ -119,7 +162,7 @@ export function sanitizePageUrlForOrigin(value: unknown, expectedOrigin: string)
   try {
     const url = new URL(normalizeHttpUrl(target));
     return url.origin === expectedOrigin ? url.toString() : "";
-  } catch (error) {
+  } catch {
     return "";
   }
 }

@@ -24,7 +24,7 @@ function parseHostFromUrl(value: string) {
 
   try {
     return new URL(value).host || null;
-  } catch (error) {
+  } catch {
     return null;
   }
 }
@@ -41,7 +41,7 @@ export async function POST(request: Request) {
 
   try {
     body = (await request.json()) as Record<string, unknown>;
-  } catch (error) {
+  } catch {
     return respond({ error: "JSON 요청 본문이 필요합니다." }, 400);
   }
 
@@ -67,11 +67,11 @@ export async function POST(request: Request) {
   }
 
   if (!isOriginAllowed(state.allowedOrigins, requestOrigin)) {
-    return respond({ error: "이 origin은 허용되지 않았습니다." }, 403);
+    return respond({ error: "이 origin은 허용되지 않습니다." }, 403);
   }
 
   const rateLimit = checkRateLimit({
-    key: buildRateLimitKey("create-payment", state.project.id, requestOrigin, getClientIp(request), sessionId),
+    key: buildRateLimitKey("create-payment", state.project.id, requestOrigin, getClientIp(request)),
     limit: 12,
     windowMs: 10 * 60 * 1000
   });
@@ -171,6 +171,7 @@ export async function POST(request: Request) {
       200
     );
   } catch (error) {
-    return respond({ error: error instanceof Error ? error.message : "체크아웃 생성에 실패했습니다." }, 500);
+    console.error("[public-api/create-payment]", error);
+    return respond({ error: "체크아웃 생성에 실패했습니다." }, 500);
   }
 }

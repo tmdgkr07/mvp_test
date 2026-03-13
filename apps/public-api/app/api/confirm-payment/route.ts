@@ -1,5 +1,5 @@
-import { confirmPayment } from "@/lib/embed-payments";
 import { corsHeadersForOrigin, json, noContent } from "@/lib/embed-cors";
+import { confirmPayment } from "@/lib/embed-payments";
 import { findDonationByOrderId, resolveRequestOrigin, updateDonationFromPayment } from "@/lib/embed-store";
 import { buildBaseUrl, createIdempotencyKey, parseAmount, resolveSafeReturnUrl } from "@/lib/embed-utils";
 
@@ -24,7 +24,7 @@ export async function POST(request: Request) {
 
   try {
     body = (await request.json()) as Record<string, unknown>;
-  } catch (error) {
+  } catch {
     return respond({ error: "JSON 요청 본문이 필요합니다." }, 400);
   }
 
@@ -49,7 +49,7 @@ export async function POST(request: Request) {
     }
 
     if (donation.status === "DONE" && donation.paymentKey === paymentKey) {
-      return respond({ ok: true, alreadyConfirmed: true, donation, returnUrl }, 200);
+      return respond({ ok: true, alreadyConfirmed: true, orderId, status: donation.status, returnUrl }, 200);
     }
 
     const payment = isFakePaymentMode
@@ -71,18 +71,20 @@ export async function POST(request: Request) {
           amount
         });
 
-    const updatedDonation = await updateDonationFromPayment(orderId, payment, payment, "CONFIRM_API");
+    const updatedDonation = await updateDonationFromPayment(orderId, payment, "CONFIRM_API");
 
     return respond(
       {
         ok: true,
-        payment,
-        donation: updatedDonation,
+        alreadyConfirmed: false,
+        orderId,
+        status: updatedDonation.status,
         returnUrl
       },
       200
     );
   } catch (error) {
-    return respond({ error: error instanceof Error ? error.message : "결제 확인에 실패했습니다." }, 500);
+    console.error("[public-api/confirm-payment]", error);
+    return respond({ error: "결제 확인에 실패했습니다." }, 500);
   }
 }

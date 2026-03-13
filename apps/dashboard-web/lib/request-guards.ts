@@ -51,6 +51,60 @@ export function buildRateLimitKey(...parts: unknown[]) {
   return parts.map((part) => sanitizeKeyPart(part)).join(":");
 }
 
+function normalizeOrigin(value: string) {
+  try {
+    return new URL(value).origin;
+  } catch {
+    return "";
+  }
+}
+
+function resolveExpectedOrigins(request: Request) {
+  const expected = new Set<string>();
+  const requestUrlOrigin = normalizeOrigin(request.url);
+  if (requestUrlOrigin) {
+    expected.add(requestUrlOrigin);
+  }
+
+  const host = String(request.headers.get("x-forwarded-host") || request.headers.get("host") || "").trim();
+  const forwardedProto = String(request.headers.get("x-forwarded-proto") || "").trim();
+
+  if (host) {
+    const fallbackProtocol = requestUrlOrigin ? new URL(requestUrlOrigin).protocol.replace(":", "") : "http";
+    const candidateOrigin = normalizeOrigin(`${forwardedProto || fallbackProtocol}://${host}`);
+    if (candidateOrigin) {
+      expected.add(candidateOrigin);
+    }
+  }
+
+  return expected;
+}
+
+export function validateTrustedAppMutation(request: Request) {
+  const expectedOrigins = resolveExpectedOrigins(request);
+  const originHeader = normalizeOrigin(request.headers.get("origin") || "");
+  const refererOrigin = normalizeOrigin(request.headers.get("referer") || "");
+  const fetchSite = String(request.headers.get("sec-fetch-site") || "").trim().toLowerCase();
+
+  if (!originHeader && !refererOrigin) {
+    return { ok: false as const, error: "Origin or Referer is required for authenticated mutations." };
+  }
+
+  if (originHeader && !expectedOrigins.has(originHeader)) {
+    return { ok: false as const, error: "Cross-origin mutations are not allowed." };
+  }
+
+  if (!originHeader && refererOrigin && !expectedOrigins.has(refererOrigin)) {
+    return { ok: false as const, error: "Cross-origin referers are not allowed." };
+  }
+
+  if (fetchSite && !["same-origin", "same-site", "none"].includes(fetchSite)) {
+    return { ok: false as const, error: "Cross-site browser requests are blocked." };
+  }
+
+  return { ok: true as const };
+}
+
 export function checkRateLimit(input: { key: string; limit: number; windowMs: number }) {
   const now = Date.now();
   pruneExpiredEntries(now);

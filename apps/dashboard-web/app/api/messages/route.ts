@@ -11,9 +11,30 @@ import {
   type CreatorFeedbackReadFilter
 } from "@/lib/embed-store";
 import { canManageProject } from "@/lib/permissions";
+import { validateTrustedAppMutation } from "@/lib/request-guards";
 
 export const runtime = "nodejs";
 export const preferredRegion = "icn1";
+
+function serializeCreatorMessage(
+  message: Awaited<ReturnType<typeof listCreatorFeedbackMessagesForProjectIds>>[number]
+) {
+  return {
+    id: message.id,
+    amount: message.amount,
+    currency: message.currency,
+    supporterName: message.supporterName,
+    message: message.message,
+    createdAt: message.createdAt.toISOString(),
+    approvedAt: message.approvedAt ? message.approvedAt.toISOString() : null,
+    creatorReadAt: message.creatorReadAt ? message.creatorReadAt.toISOString() : null,
+    project: {
+      id: message.project.id,
+      name: message.project.name,
+      slug: message.project.slug
+    }
+  };
+}
 
 function parseRequestedProjectIds(value: unknown) {
   if (Array.isArray(value)) {
@@ -109,13 +130,18 @@ export async function GET(request: Request) {
   return Response.json({
     data: {
       counts,
-      messages
+      messages: messages.map(serializeCreatorMessage)
     }
   });
 }
 
 export async function POST(request: Request) {
   const session = await auth();
+  const trust = validateTrustedAppMutation(request);
+  if (!trust.ok) {
+    return fail("FORBIDDEN", trust.error, 403);
+  }
+
   let body: Record<string, unknown>;
 
   try {
@@ -159,7 +185,7 @@ export async function POST(request: Request) {
   return Response.json({
     data: {
       counts,
-      messages
+      messages: messages.map(serializeCreatorMessage)
     }
   });
 }

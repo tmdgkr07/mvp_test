@@ -1,4 +1,6 @@
 import crypto from "node:crypto";
+import fs from "node:fs";
+import path from "node:path";
 
 const ANY_EMBED_ORIGIN = "*";
 const BOOTSTRAP_SCOPE = "bootstrap";
@@ -8,6 +10,7 @@ type EmbedTokenScope = typeof BOOTSTRAP_SCOPE | typeof SESSION_SCOPE;
 
 type EmbedTokenPayload = {
   exp?: number;
+  nonceHash?: string;
   origin?: string;
   projectId?: string;
   scope?: EmbedTokenScope;
@@ -28,7 +31,7 @@ function resolveRequestOrigin(request: Request) {
 
   try {
     return new URL(referer).origin;
-  } catch (error) {
+  } catch {
     return "";
   }
 }
@@ -44,7 +47,49 @@ function safeEqual(left: string, right: string) {
   return crypto.timingSafeEqual(leftBuffer, rightBuffer);
 }
 
+function readEnvValue(filePath: string, key: string) {
+  if (!fs.existsSync(filePath)) {
+    return "";
+  }
+
+  const source = fs.readFileSync(filePath, "utf8");
+  const pattern = new RegExp(`^${key}\\s*=\\s*(.+)$`, "m");
+  const match = source.match(pattern);
+  if (!match) {
+    return "";
+  }
+
+  return match[1].trim().replace(/^['"]|['"]$/g, "");
+}
+
+function hydrateEmbedTokenSecretEnv() {
+  if (process.env.EMBED_TOKEN_SECRET || process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET) {
+    return;
+  }
+
+  const candidates = [
+    path.join(process.cwd(), ".env.local"),
+    path.join(process.cwd(), ".env"),
+    path.join(process.cwd(), "../../.env.local"),
+    path.join(process.cwd(), "../../.env")
+  ];
+
+  for (const filePath of candidates) {
+    for (const key of ["EMBED_TOKEN_SECRET", "AUTH_SECRET", "NEXTAUTH_SECRET"]) {
+      const value = readEnvValue(filePath, key);
+      if (value && !process.env[key]) {
+        process.env[key] = value;
+      }
+    }
+
+    if (process.env.EMBED_TOKEN_SECRET || process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET) {
+      return;
+    }
+  }
+}
+
 function getEmbedTokenSecret() {
+  hydrateEmbedTokenSecretEnv();
   return process.env.EMBED_TOKEN_SECRET || process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || "";
 }
 
@@ -71,6 +116,10 @@ function normalizeRequiredScopes(requiredScope?: EmbedTokenScope | EmbedTokenSco
   return Array.isArray(requiredScope) ? requiredScope : [requiredScope];
 }
 
+function hashEmbedSessionNonce(nonce: string) {
+  return crypto.createHash("sha256").update(String(nonce || "")).digest("base64url");
+}
+
 export function createEmbedToken(input: { projectId: string; origin: string; expiresAt: number }) {
   return encodeTokenPayload({
     projectId: String(input.projectId || "").trim(),
@@ -80,17 +129,23 @@ export function createEmbedToken(input: { projectId: string; origin: string; exp
   });
 }
 
+export function createEmbedSessionNonce() {
+  return crypto.randomBytes(18).toString("base64url");
+}
+
 export function createEmbedSessionToken(input: {
   projectId: string;
   origin: string;
   expiresAt: number;
   sessionId?: string;
+  sessionNonce: string;
   visitorId?: string;
 }) {
   return encodeTokenPayload({
     projectId: String(input.projectId || "").trim(),
     origin: String(input.origin || "").trim(),
     exp: Number(input.expiresAt),
+    nonceHash: hashEmbedSessionNonce(input.sessionNonce),
     scope: SESSION_SCOPE,
     sessionId: String(input.sessionId || "").trim() || undefined,
     visitorId: String(input.visitorId || "").trim() || undefined
@@ -154,7 +209,7 @@ export function verifyEmbedToken(
     }
 
     return { ok: true as const, payload };
-  } catch (error) {
+  } catch {
     return { ok: false as const, error: "임베드 토큰을 검증하지 못했습니다." };
   }
 }
@@ -184,6 +239,14 @@ export function getEmbedSessionFromRequest(request: Request, body?: Record<strin
   ).trim();
 }
 
+export function getEmbedSessionNonceFromRequest(request: Request, body?: Record<string, unknown>) {
+  return (
+    request.headers.get("x-embed-session-nonce") ||
+    (typeof body?.embedSessionNonce === "string" ? body.embedSessionNonce : "") ||
+    ""
+  ).trim();
+}
+
 export function validateBootstrapRequest(
   request: Request,
   body: Record<string, unknown> | undefined,
@@ -191,12 +254,12 @@ export function validateBootstrapRequest(
 ) {
   const token = getBootstrapTokenFromRequest(request, body);
 
-  if (!input.requireSignedEmbed && !token) {
-    return { ok: true as const, payload: null };
-  }
-
   if (!token) {
-    return { ok: false as const, error: "이 프로젝트는 bootstrap 토큰이 필요합니다." };
+    if (input.requireSignedEmbed) {
+      return { ok: false as const, error: "A signed bootstrap token is required for this widget." };
+    }
+
+    return { ok: true as const, payload: null };
   }
 
   return verifyEmbedToken(token, input.projectId, resolveRequestOrigin(request), {
@@ -218,9 +281,24 @@ export function validateEmbedSessionRequest(
     return { ok: false as const, error: "임베드 세션이 필요합니다." };
   }
 
-  return verifyEmbedToken(sessionToken, input.projectId, resolveRequestOrigin(request), {
+  const sessionNonce = getEmbedSessionNonceFromRequest(request, body);
+  if (!sessionNonce) {
+    return { ok: false as const, error: "임베드 세션 nonce가 필요합니다." };
+  }
+
+  const verification = verifyEmbedToken(sessionToken, input.projectId, resolveRequestOrigin(request), {
     requiredScope: SESSION_SCOPE,
     expectedSessionId: input.expectedSessionId,
     expectedVisitorId: input.expectedVisitorId
   });
+
+  if (!verification.ok) {
+    return verification;
+  }
+
+  if (!verification.payload.nonceHash || !safeEqual(verification.payload.nonceHash, hashEmbedSessionNonce(sessionNonce))) {
+    return { ok: false as const, error: "임베드 세션 nonce가 현재 요청과 다릅니다." };
+  }
+
+  return verification;
 }

@@ -34,6 +34,40 @@ function buildDefaultSettings(project: { id: string; name: string; tagline: stri
   };
 }
 
+export function buildWidgetBootstrapSettings(settings: {
+  creatorName: string;
+  headline: string;
+  description: string;
+  buttonText: string;
+  checkoutText: string;
+  theme: string;
+  currency: string;
+  presetAmounts: number[];
+  minAmount: number;
+  maxAmount: number;
+  campaign: string;
+  paymentMethod: string;
+  note: string | null;
+  accentColor?: string | null;
+}) {
+  return {
+    creator: settings.creatorName,
+    headline: settings.headline,
+    description: settings.description,
+    buttonText: settings.buttonText,
+    checkoutText: settings.checkoutText,
+    theme: settings.theme,
+    currency: settings.currency,
+    presets: settings.presetAmounts,
+    minAmount: settings.minAmount,
+    maxAmount: settings.maxAmount,
+    campaign: settings.campaign,
+    method: settings.paymentMethod,
+    note: settings.note || "",
+    accent: settings.accentColor || ""
+  };
+}
+
 export function resolveRequestOrigin(request: Request) {
   const originHeader = request.headers.get("origin");
   if (originHeader) {
@@ -142,48 +176,38 @@ export async function removeAllowedOrigin(projectId: string, origin: string) {
   return getProjectEmbedState(projectId);
 }
 
-function buildSnippet(widgetBaseUrl: string, apiBaseUrl: string, input: Awaited<ReturnType<typeof getProjectEmbedState>>, token: string) {
+function buildSnippet(
+  widgetBaseUrl: string,
+  apiBaseUrl: string,
+  origin: string,
+  input: Awaited<ReturnType<typeof getProjectEmbedState>>
+) {
   if (!input) {
     throw new Error("임베드 스니펫을 만들 프로젝트를 찾지 못했습니다.");
   }
 
   const attrs: Array<[string, string]> = [
     ["data-project-id", input.project.id],
-    ["data-bootstrap-token", token],
-    ["data-embed-token", token],
-    ["data-bootstrap-path", `${apiBaseUrl}/api/embed/bootstrap`],
-    ["data-api-path", `${apiBaseUrl}/api/create-payment`],
-    ["data-tracking-path", `${apiBaseUrl}/api/track`],
-    ["data-creator", input.settings.creatorName],
-    ["data-headline", input.settings.headline],
-    ["data-description", input.settings.description],
-    ["data-button-text", input.settings.buttonText],
-    ["data-checkout-text", input.settings.checkoutText],
-    ["data-theme", input.settings.theme],
-    ["data-currency", input.settings.currency],
-    ["data-presets", input.settings.presetAmounts.join(",")],
-    ["data-min-amount", String(input.settings.minAmount)],
-    ["data-max-amount", String(input.settings.maxAmount)],
-    ["data-campaign", input.settings.campaign],
-    ["data-method", input.settings.paymentMethod],
-    ["data-note", input.settings.note || ""]
+    ["data-api-base", apiBaseUrl]
   ];
 
-  if (input.settings.accentColor) {
-    attrs.push(["data-accent", input.settings.accentColor]);
+  const tokenExpiresAt = Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 365;
+  if (input.settings.requireSignedEmbed) {
+    const bootstrapToken = createEmbedToken({
+      projectId: input.project.id,
+      origin,
+      expiresAt: tokenExpiresAt
+    });
+
+    attrs.push(["data-bootstrap-token", bootstrapToken]);
   }
 
   const serializedAttrs = attrs
     .filter(([, value]) => value)
-    .map(([key, value]) => `  ${key}="${escapeHtmlAttribute(value)}"`);
+    .map(([key, value]) => `${key}="${escapeHtmlAttribute(value)}"`)
+    .join(" ");
 
-  return [
-    "<script",
-    `  src="${buildWidgetAssetUrl(widgetBaseUrl)}"`,
-    "  async",
-    ...serializedAttrs,
-    "></script>"
-  ].join("\n");
+  return `<script async src="${buildWidgetAssetUrl(widgetBaseUrl)}" ${serializedAttrs}></script>`;
 }
 
 export async function issueEmbedSnippet(input: { projectId: string; origin: string; request: Request }) {
@@ -193,19 +217,12 @@ export async function issueEmbedSnippet(input: { projectId: string; origin: stri
     throw new Error("임베드 설정을 만들 프로젝트를 찾지 못했습니다.");
   }
 
-  const expiresAt = Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 365;
-  const token = createEmbedToken({
-    projectId: state.project.id,
-    origin: normalizedOrigin,
-    expiresAt
-  });
-
   return {
     projectId: state.project.id,
     origin: normalizedOrigin,
-    expiresAt: new Date(expiresAt * 1000).toISOString(),
-    token,
-    snippet: buildSnippet(buildEmbedPublicUrl(input.request), buildEmbedApiBaseUrl(input.request), state, token),
+    expiresAt: null,
+    token: null,
+    snippet: buildSnippet(buildEmbedPublicUrl(input.request), buildEmbedApiBaseUrl(input.request), normalizedOrigin, state),
     settings: state.settings
   };
 }
@@ -300,10 +317,19 @@ export async function findDonationByOrderId(orderId: string) {
 export async function updateDonationFromPayment(
   orderId: string,
   payment: Record<string, any>,
-  confirmedPayload: unknown,
   sourceLabel: string
 ) {
   const nextStatus = normalizeDonationStatus(payment.status);
+  const confirmedPayload: Record<string, unknown> = {};
+
+  if (typeof payment.paymentKey === "string") confirmedPayload.paymentKey = payment.paymentKey;
+  if (typeof payment.orderId === "string") confirmedPayload.orderId = payment.orderId;
+  if (typeof payment.status === "string") confirmedPayload.status = payment.status;
+  if (typeof payment.method === "string") confirmedPayload.method = payment.method;
+  if (typeof payment.approvedAt === "string") confirmedPayload.approvedAt = payment.approvedAt;
+  if (typeof payment?.receipt?.url === "string") confirmedPayload.receiptUrl = payment.receipt.url;
+  if (typeof payment?.easyPay?.provider === "string") confirmedPayload.provider = payment.easyPay.provider;
+  if (sourceLabel) confirmedPayload.source = sourceLabel;
 
   return db.donation.update({
     where: { orderId },
@@ -313,7 +339,7 @@ export async function updateDonationFromPayment(
       receiptUrl: typeof payment?.receipt?.url === "string" ? payment.receipt.url : undefined,
       method: typeof payment.method === "string" ? payment.method : undefined,
       provider: typeof payment?.easyPay?.provider === "string" ? payment.easyPay.provider : undefined,
-      confirmedPayload: confirmedPayload as any,
+      confirmedPayload: Object.keys(confirmedPayload).length > 0 ? (confirmedPayload as any) : undefined,
       lastWebhookEvent: sourceLabel || undefined,
       approvedAt: nextStatus === DonationStatus.DONE ? new Date() : undefined
     }

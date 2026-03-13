@@ -1,6 +1,6 @@
 ﻿import { prisma } from "@/lib/prisma";
 import type { Session } from "next-auth";
-import { isAdminEmail } from "@/lib/permissions";
+import { isAdminSession } from "@/lib/permissions";
 import type { AnalyticsEvent, CreateProjectInput, Feedback, Project, Sentiment, UpdateProjectInput } from "@/lib/types";
 import { createSlug, parseMetadata, toISOStringSafe } from "@/lib/utils";
 
@@ -109,7 +109,7 @@ export async function listManageableProjects(session: Session | null, options?: 
     return [];
   }
 
-  if (isAdminEmail(session.user.email)) {
+  if (isAdminSession(session)) {
     return listProjects(options);
   }
 
@@ -364,4 +364,256 @@ export async function getGlobalStats() {
 
 export function normalizeEventMetadata(input: unknown) {
   return parseMetadata(input);
+}
+
+export type AdminUserSummary = {
+  id: string;
+  email: string;
+  name: string | null;
+  image: string | null;
+  role: "admin" | "super_admin";
+  emailVerified: string | null;
+  roleAssignedAt: string | null;
+  roleAssignedById: string | null;
+  createdAt: string;
+};
+
+export type AdminAuditLogSummary = {
+  id: string;
+  actorEmail: string | null;
+  targetEmail: string;
+  previousRole: "creator" | "admin" | "super_admin" | null;
+  nextRole: "creator" | "admin" | "super_admin";
+  createdAt: string;
+};
+
+function mapDbRole(role: "CREATOR" | "ADMIN" | "SUPER_ADMIN"): "creator" | "admin" | "super_admin" {
+  if (role === "SUPER_ADMIN") {
+    return "super_admin";
+  }
+
+  if (role === "ADMIN") {
+    return "admin";
+  }
+
+  return "creator";
+}
+
+function mapAdminUser(user: {
+  id: string;
+  email: string | null;
+  name: string | null;
+  image: string | null;
+  role: "CREATOR" | "ADMIN" | "SUPER_ADMIN";
+  emailVerified: Date | null;
+  roleAssignedAt: Date | null;
+  roleAssignedById: string | null;
+  createdAt: Date;
+}): AdminUserSummary | null {
+  if (!user.email) {
+    return null;
+  }
+
+  const mappedRole = mapDbRole(user.role);
+  if (mappedRole === "creator") {
+    return null;
+  }
+
+  return {
+    id: user.id,
+    email: user.email,
+    name: user.name,
+    image: user.image,
+    role: mappedRole,
+    emailVerified: user.emailVerified ? toISOStringSafe(user.emailVerified) : null,
+    roleAssignedAt: user.roleAssignedAt ? toISOStringSafe(user.roleAssignedAt) : null,
+    roleAssignedById: user.roleAssignedById,
+    createdAt: toISOStringSafe(user.createdAt)
+  };
+}
+
+export async function listAdminUsers(): Promise<AdminUserSummary[]> {
+  const users = await prisma.user.findMany({
+    where: {
+      role: {
+        in: ["ADMIN", "SUPER_ADMIN"]
+      }
+    },
+    orderBy: [{ roleAssignedAt: "desc" }, { createdAt: "desc" }],
+    select: {
+      id: true,
+      email: true,
+      name: true,
+      image: true,
+      role: true,
+      emailVerified: true,
+      roleAssignedAt: true,
+      roleAssignedById: true,
+      createdAt: true
+    }
+  });
+
+  return users.map(mapAdminUser).filter((item): item is AdminUserSummary => Boolean(item));
+}
+
+export async function countAdminUsers(): Promise<number> {
+  return prisma.user.count({
+    where: {
+      role: {
+        in: ["ADMIN", "SUPER_ADMIN"]
+      }
+    }
+  });
+}
+
+export async function countSuperAdminUsers(): Promise<number> {
+  return prisma.user.count({
+    where: { role: "SUPER_ADMIN" }
+  });
+}
+
+function mapAuditRole(role: "CREATOR" | "ADMIN" | "SUPER_ADMIN" | null): "creator" | "admin" | "super_admin" | null {
+  if (!role) {
+    return null;
+  }
+
+  return mapDbRole(role);
+}
+
+export async function listRecentAdminAuditLogs(limit = 20): Promise<AdminAuditLogSummary[]> {
+  const logs = await prisma.adminAuditLog.findMany({
+    orderBy: { createdAt: "desc" },
+    take: Math.min(Math.max(limit, 1), 100),
+    select: {
+      id: true,
+      actorEmail: true,
+      targetEmail: true,
+      previousRole: true,
+      nextRole: true,
+      createdAt: true
+    }
+  });
+
+  return logs.map((log) => ({
+    id: log.id,
+    actorEmail: log.actorEmail,
+    targetEmail: log.targetEmail,
+    previousRole: mapAuditRole(log.previousRole),
+    nextRole: mapDbRole(log.nextRole),
+    createdAt: toISOStringSafe(log.createdAt)
+  }));
+}
+
+export async function updateUserAdminRole(input: {
+  email: string;
+  nextRole: "CREATOR" | "ADMIN" | "SUPER_ADMIN";
+  actorUserId: string;
+}): Promise<AdminUserSummary | null> {
+  const normalizedEmail = input.email.trim().toLowerCase();
+
+  const actor = await prisma.user.findUnique({
+    where: { id: input.actorUserId },
+    select: {
+      id: true,
+      email: true,
+      role: true
+    }
+  });
+
+  if (!actor || actor.role !== "SUPER_ADMIN") {
+    throw new Error("Only super admins can change privileged roles.");
+  }
+
+  const user = await prisma.user.findFirst({
+    where: {
+      email: {
+        equals: normalizedEmail,
+        mode: "insensitive"
+      }
+    },
+    select: {
+      id: true,
+      email: true,
+      name: true,
+      image: true,
+      emailVerified: true,
+      accounts: {
+        select: {
+          provider: true
+        }
+      },
+      roleAssignedAt: true,
+      roleAssignedById: true,
+      createdAt: true,
+      role: true
+    }
+  });
+
+  if (!user?.email) {
+    throw new Error("The user must sign in once before role changes are allowed.");
+  }
+
+  const hasTrustedLogin = Boolean(user.emailVerified) || user.accounts.some((account) => account.provider === "google");
+  if (!hasTrustedLogin) {
+    throw new Error("Only verified or trusted OAuth accounts can receive privileged roles.");
+  }
+
+  if (user.role === input.nextRole) {
+    return mapAdminUser(user);
+  }
+
+  if (user.role === "SUPER_ADMIN" && input.nextRole !== "SUPER_ADMIN") {
+    const superAdminCount = await countSuperAdminUsers();
+    if (superAdminCount <= 1) {
+      throw new Error("At least one super admin must remain assigned.");
+    }
+  }
+
+  const roleAssignedAt = input.nextRole === "CREATOR" ? null : new Date();
+  const roleAssignedById = input.nextRole === "CREATOR" ? null : input.actorUserId;
+
+  const updated = await prisma.$transaction(async (tx) => {
+    const nextUser = await tx.user.update({
+      where: { id: user.id },
+      data: {
+        role: input.nextRole,
+        roleAssignedAt,
+        roleAssignedById
+      },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        image: true,
+        role: true,
+        emailVerified: true,
+        roleAssignedAt: true,
+        roleAssignedById: true,
+        createdAt: true
+      }
+    });
+
+    await tx.adminAuditLog.create({
+      data: {
+        actorUserId: actor.id,
+        actorEmail: actor.email || null,
+        targetUserId: nextUser.id,
+        targetEmail: nextUser.email || normalizedEmail,
+        action: "ROLE_UPDATED",
+        previousRole: user.role,
+        nextRole: input.nextRole,
+        metadata: {
+          source: "admin-console"
+        }
+      }
+    });
+
+    return nextUser;
+  });
+
+  const mapped = mapAdminUser(updated);
+  if (!mapped && input.nextRole !== "CREATOR") {
+    throw new Error("Unable to load the updated privileged user.");
+  }
+  return mapped;
 }

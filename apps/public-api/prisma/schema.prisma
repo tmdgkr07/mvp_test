@@ -33,12 +33,25 @@ enum MessagePublicStatus {
   REJECTED
 }
 
+enum UserRole {
+  CREATOR
+  ADMIN
+  SUPER_ADMIN
+}
+
+enum AdminAuditAction {
+  ROLE_UPDATED
+}
+
 model User {
   id            String    @id @default(cuid())
   name          String?
   email         String?   @unique
   emailVerified DateTime?
   image         String?
+  role          UserRole  @default(CREATOR)
+  roleAssignedAt DateTime?
+  roleAssignedById String?
   createdAt     DateTime  @default(now())
 
   accounts      Account[]
@@ -46,6 +59,25 @@ model User {
   ownedProjects Project[] @relation("ProjectOwner")
   followers     Follow[]  @relation("Following")
   following     Follow[]  @relation("Follower")
+
+  @@index([role])
+}
+
+model AdminAuditLog {
+  id          String           @id @default(cuid())
+  actorUserId String?
+  actorEmail  String?
+  targetUserId String?
+  targetEmail String
+  action      AdminAuditAction
+  previousRole UserRole?
+  nextRole    UserRole
+  metadata    Json?
+  createdAt   DateTime         @default(now())
+
+  @@index([actorUserId, createdAt])
+  @@index([targetUserId, createdAt])
+  @@index([createdAt])
 }
 
 model Account {
