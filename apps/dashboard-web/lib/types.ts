@@ -76,6 +76,16 @@ declare module "next-auth" {
   interface Session {
     user: {
       id: string;
+      isAdmin?: boolean;
+      isSuperAdmin?: boolean;
+      role?: "creator" | "admin" | "super_admin";
     } & DefaultSession["user"];
+  }
+
+  interface User {
+    id: string;
+    isAdmin?: boolean;
+    isSuperAdmin?: boolean;
+    role?: "creator" | "admin" | "super_admin";
   }
 }

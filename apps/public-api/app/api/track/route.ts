@@ -36,7 +36,7 @@ function parseHostFromUrl(value: string) {
 
   try {
     return new URL(value).host || "";
-  } catch (error) {
+  } catch {
     return "";
   }
 }
@@ -53,7 +53,7 @@ export async function POST(request: Request) {
 
   try {
     body = (await request.json()) as Record<string, unknown>;
-  } catch (error) {
+  } catch {
     return respond({ error: "JSON 요청 본문이 필요합니다." }, 400);
   }
 
@@ -84,11 +84,11 @@ export async function POST(request: Request) {
   }
 
   if (!isOriginAllowed(state.allowedOrigins, requestOrigin)) {
-    return respond({ error: "이 origin은 허용되지 않았습니다." }, 403);
+    return respond({ error: "이 origin은 허용되지 않습니다." }, 403);
   }
 
   const rateLimit = checkRateLimit({
-    key: buildRateLimitKey("embed-track", state.project.id, requestOrigin, getClientIp(request), sessionId, eventType),
+    key: buildRateLimitKey("embed-track", state.project.id, requestOrigin, getClientIp(request), eventType),
     limit: eventType === "view" ? 240 : 120,
     windowMs: 5 * 60 * 1000
   });
@@ -116,6 +116,7 @@ export async function POST(request: Request) {
 
     return noContent(responseHeaders);
   } catch (error) {
-    return respond({ error: error instanceof Error ? error.message : "분석 이벤트 기록에 실패했습니다." }, 500);
+    console.error("[public-api/track]", error);
+    return respond({ error: "분석 이벤트 기록에 실패했습니다." }, 500);
   }
 }

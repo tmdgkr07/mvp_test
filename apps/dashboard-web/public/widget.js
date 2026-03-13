@@ -23,6 +23,7 @@
     note: "결제 링크는 내 백엔드에서 생성됩니다.",
     accent: "",
     target: "",
+    apiBase: "",
     bootstrapToken: "",
     embedToken: "",
     bootstrapPath: "/api/embed/bootstrap",
@@ -77,6 +78,16 @@
         })
     );
     return attr !== null && attr !== "" ? attr : defaults[name];
+  }
+
+  function readRawOption(name) {
+    var attr = script.getAttribute(
+      "data-" +
+        name.replace(/[A-Z]/g, function (char) {
+          return "-" + char.toLowerCase();
+        })
+    );
+    return attr !== null && attr !== "" ? attr : "";
   }
 
   function sanitizeText(value, fallback, maxLength) {
@@ -141,6 +152,14 @@
   function buildApiUrl(path) {
     var base = new URL(script.src, window.location.href);
     return new URL(path, base.origin).toString();
+  }
+
+  function buildUrlFromBase(baseValue, path) {
+    try {
+      return new URL(path, baseValue).toString();
+    } catch (error) {
+      return "";
+    }
   }
 
   function buildDefaultBootstrapUrl(apiUrl, trackingUrl) {
@@ -212,11 +231,22 @@
     return node;
   }
 
+  var apiBaseOption = String(readOption("apiBase") || "").trim();
   var minAmount = parseAmount(readOption("minAmount"), 1000);
   var maxAmount = parseAmount(readOption("maxAmount"), 500000);
-  var bootstrapPathOption = String(readOption("bootstrapPath") || "").trim();
-  var apiUrl = buildApiUrl(readOption("apiPath"));
-  var trackingUrl = buildApiUrl(readOption("trackingPath"));
+  var bootstrapPathOption = String(readRawOption("bootstrapPath") || "").trim();
+  var apiPathOption = String(readRawOption("apiPath") || "").trim();
+  var trackingPathOption = String(readRawOption("trackingPath") || "").trim();
+  var apiUrl = apiPathOption
+    ? buildApiUrl(apiPathOption)
+    : apiBaseOption
+      ? buildUrlFromBase(apiBaseOption, defaults.apiPath)
+      : buildApiUrl(defaults.apiPath);
+  var trackingUrl = trackingPathOption
+    ? buildApiUrl(trackingPathOption)
+    : apiBaseOption
+      ? buildUrlFromBase(apiBaseOption, defaults.trackingPath)
+      : buildApiUrl(defaults.trackingPath);
   var options = {
     creator: sanitizeText(readOption("creator"), defaults.creator, 48),
     headline: sanitizeText(readOption("headline"), defaults.headline, 90),
@@ -235,9 +265,14 @@
     note: sanitizeText(readOption("note"), defaults.note, 120),
     accent: sanitizeCssColor(readOption("accent")),
     target: String(readOption("target") || "").trim(),
+    apiBase: apiBaseOption,
     bootstrapToken: sanitizeText(readOption("bootstrapToken"), sanitizeText(readOption("embedToken"), defaults.embedToken, 600), 600),
     embedToken: sanitizeText(readOption("embedToken"), defaults.embedToken, 600),
-    bootstrapUrl: bootstrapPathOption ? buildApiUrl(bootstrapPathOption) : buildDefaultBootstrapUrl(apiUrl, trackingUrl),
+    bootstrapUrl: bootstrapPathOption
+      ? buildApiUrl(bootstrapPathOption)
+      : apiBaseOption
+        ? buildUrlFromBase(apiBaseOption, defaults.bootstrapPath)
+        : buildDefaultBootstrapUrl(apiUrl, trackingUrl),
     apiUrl: apiUrl,
     trackingUrl: trackingUrl
   };
@@ -255,6 +290,7 @@
   var previousBodyOverflow = "";
   var busy = false;
   var runtimeSessionToken = "";
+  var runtimeSessionNonce = "";
   var runtimeSessionExpiresAt = 0;
   var runtimeSessionPromise = null;
 
@@ -265,9 +301,6 @@
   if (!window.__donationWidgetTrackedEngagements) {
     window.__donationWidgetTrackedEngagements = {};
   }
-
-  ensureRuntimeSession(false).catch(function () {
-  });
 
   function placeMount() {
     if (options.target) {
@@ -300,7 +333,7 @@
   }
 
   function hasActiveRuntimeSession(bufferMs) {
-    return !!runtimeSessionToken && runtimeSessionExpiresAt - Date.now() > (bufferMs || 0);
+    return !!runtimeSessionToken && !!runtimeSessionNonce && runtimeSessionExpiresAt - Date.now() > (bufferMs || 0);
   }
 
   function requestRuntimeSession() {
@@ -328,9 +361,14 @@
           throw new Error(data.error || "임베드 세션을 만들지 못했습니다.");
         }
 
+        if (data.settings && typeof data.settings === "object") {
+          applyWidgetSettings(data.settings);
+        }
+
         runtimeSessionToken = typeof data.sessionToken === "string" ? data.sessionToken : "";
+        runtimeSessionNonce = typeof data.sessionNonce === "string" ? data.sessionNonce : "";
         runtimeSessionExpiresAt = parseIsoTimestamp(data.expiresAt);
-        if (!runtimeSessionToken || !runtimeSessionExpiresAt) {
+        if (!runtimeSessionToken || !runtimeSessionNonce || !runtimeSessionExpiresAt) {
           throw new Error("임베드 세션 응답이 올바르지 않습니다.");
         }
 
@@ -355,7 +393,7 @@
     return runtimeSessionPromise;
   }
 
-  function buildTrackPayload(eventType, extra, sessionToken) {
+  function buildTrackPayload(eventType, extra, sessionToken, sessionNonce) {
     return {
       eventType: eventType,
       projectId: options.projectId,
@@ -368,6 +406,7 @@
       pagePath: pagePath,
       referrer: document.referrer || "",
       embedSession: sessionToken || undefined,
+      embedSessionNonce: sessionNonce || undefined,
       durationMs: extra && typeof extra.durationMs === "number" ? extra.durationMs : undefined,
       metadata: extra && extra.metadata ? extra.metadata : {}
     };
@@ -382,7 +421,7 @@
       }
 
       try {
-        var beaconPayload = buildTrackPayload(eventType, extra, runtimeSessionToken);
+        var beaconPayload = buildTrackPayload(eventType, extra, runtimeSessionToken, runtimeSessionNonce);
         var blob = new Blob([JSON.stringify(beaconPayload)], {
           type: "application/json"
         });
@@ -394,7 +433,7 @@
 
     ensureRuntimeSession(false)
       .then(function (sessionToken) {
-        var payload = buildTrackPayload(eventType, extra, sessionToken);
+        var payload = buildTrackPayload(eventType, extra, sessionToken, runtimeSessionNonce);
         return fetch(options.trackingUrl, {
           method: "POST",
           headers: {
@@ -409,6 +448,7 @@
 
           return ensureRuntimeSession(true).then(function (refreshedSessionToken) {
             payload.embedSession = refreshedSessionToken;
+            payload.embedSessionNonce = runtimeSessionNonce;
             return fetch(options.trackingUrl, {
               method: "POST",
               headers: {
@@ -424,8 +464,16 @@
       });
   }
 
-  var viewKey = options.projectId + "::" + options.campaign + "::" + pageUrl;
-  if (!window.__donationWidgetTrackedViews[viewKey]) {
+  function getViewKey() {
+    return options.projectId + "::" + options.campaign + "::" + pageUrl;
+  }
+
+  function trackInitialView() {
+    var viewKey = getViewKey();
+    if (window.__donationWidgetTrackedViews[viewKey]) {
+      return;
+    }
+
     window.__donationWidgetTrackedViews[viewKey] = true;
     sendTrackEvent("view", {
       metadata: {
@@ -435,6 +483,7 @@
   }
 
   function flushEngagement(trigger, useBeacon) {
+    var viewKey = getViewKey();
     if (hasSentEngagement || window.__donationWidgetTrackedEngagements[viewKey]) {
       return;
     }
@@ -465,33 +514,34 @@
     "<style>" +
     ":host{all:initial;}" +
     ".shell,.shell *{box-sizing:border-box;}" +
-    ".shell{font-family:Arial,Helvetica,sans-serif;color:" + palette.text + ";}" +
-    ".banner{position:relative;overflow:hidden;padding:24px;border-radius:26px;background:" + palette.background + ";box-shadow:0 24px 64px rgba(15,23,42,.18);}" +
-    ".panel{display:grid;gap:16px;padding:22px;border-radius:22px;background:" + palette.panel + ";backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.24);}" +
-    ".badge{display:inline-flex;width:max-content;align-items:center;padding:7px 11px;border-radius:999px;background:rgba(255,255,255,.48);font-size:12px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:" + palette.muted + ";}" +
+    ".shell{font-family:Arial,Helvetica,sans-serif;color:var(--widget-text);opacity:0;transform:translateY(6px);transition:opacity .18s ease,transform .18s ease;}" +
+    ".shell[data-ready='true']{opacity:1;transform:none;}" +
+    ".banner{position:relative;overflow:hidden;padding:24px;border-radius:26px;background:var(--widget-background);box-shadow:0 24px 64px rgba(15,23,42,.18);}" +
+    ".panel{display:grid;gap:16px;padding:22px;border-radius:22px;background:var(--widget-panel);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.24);}" +
+    ".badge{display:inline-flex;width:max-content;align-items:center;padding:7px 11px;border-radius:999px;background:rgba(255,255,255,.48);font-size:12px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--widget-muted);}" +
     ".headline{margin:0;font-size:28px;line-height:1.15;font-weight:900;word-break:keep-all;}" +
-    ".description{margin:0;font-size:15px;line-height:1.65;color:" + palette.muted + ";}" +
+    ".description{margin:0;font-size:15px;line-height:1.65;color:var(--widget-muted);}" +
     ".footer{display:flex;gap:14px;align-items:center;justify-content:space-between;flex-wrap:wrap;}" +
     ".preset-row{display:flex;gap:8px;flex-wrap:wrap;}" +
-    ".pill{display:inline-flex;align-items:center;min-height:38px;padding:0 12px;border-radius:999px;background:rgba(255,255,255,.62);font-size:13px;font-weight:800;color:" + palette.text + ";}" +
-    ".primary{display:inline-flex;align-items:center;justify-content:center;min-height:50px;padding:0 20px;border:none;border-radius:999px;background:" + palette.accent + ";color:" + palette.accentText + ";font-size:15px;font-weight:900;cursor:pointer;box-shadow:0 12px 24px rgba(15,23,42,.16);transition:transform .18s ease,box-shadow .18s ease;}" +
+    ".pill{display:inline-flex;align-items:center;min-height:38px;padding:0 12px;border-radius:999px;background:rgba(255,255,255,.62);font-size:13px;font-weight:800;color:var(--widget-text);}" +
+    ".primary{display:inline-flex;align-items:center;justify-content:center;min-height:50px;padding:0 20px;border:none;border-radius:999px;background:var(--widget-accent);color:var(--widget-accent-text);font-size:15px;font-weight:900;cursor:pointer;box-shadow:0 12px 24px rgba(15,23,42,.16);transition:transform .18s ease,box-shadow .18s ease;}" +
     ".primary:hover{transform:translateY(-1px);box-shadow:0 16px 28px rgba(15,23,42,.22);}" +
-    ".modal-backdrop{position:fixed;inset:0;display:none;align-items:center;justify-content:center;padding:20px;background:" + palette.overlay + ";z-index:2147483647;}" +
+    ".modal-backdrop{position:fixed;inset:0;display:none;align-items:center;justify-content:center;padding:20px;background:var(--widget-overlay);z-index:2147483647;}" +
     ".modal-backdrop[data-open='true']{display:flex;}" +
-    ".modal{width:min(100%,520px);padding:22px;border-radius:28px;background:" + palette.panel + ";backdrop-filter:blur(18px);border:1px solid rgba(255,255,255,.26);box-shadow:0 30px 80px rgba(15,23,42,.28);}" +
+    ".modal{width:min(100%,520px);padding:22px;border-radius:28px;background:var(--widget-panel);backdrop-filter:blur(18px);border:1px solid rgba(255,255,255,.26);box-shadow:0 30px 80px rgba(15,23,42,.28);}" +
     ".modal-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:18px;}" +
     ".modal-title{margin:0;font-size:24px;line-height:1.2;font-weight:900;}" +
-    ".modal-copy{margin:8px 0 0;font-size:14px;line-height:1.65;color:" + palette.muted + ";}" +
-    ".close,.ghost{display:inline-flex;align-items:center;justify-content:center;border:none;cursor:pointer;color:" + palette.text + ";background:rgba(255,255,255,.58);}" +
+    ".modal-copy{margin:8px 0 0;font-size:14px;line-height:1.65;color:var(--widget-muted);}" +
+    ".close,.ghost{display:inline-flex;align-items:center;justify-content:center;border:none;cursor:pointer;color:var(--widget-text);background:rgba(255,255,255,.58);}" +
     ".close{width:42px;height:42px;border-radius:999px;font-size:22px;}" +
     ".field{display:grid;gap:8px;margin-bottom:15px;}" +
-    ".label{font-size:13px;font-weight:800;color:" + palette.muted + ";}" +
+    ".label{font-size:13px;font-weight:800;color:var(--widget-muted);}" +
     ".chip-row{display:flex;gap:8px;flex-wrap:wrap;}" +
-    ".chip{display:inline-flex;align-items:center;justify-content:center;min-height:42px;padding:0 14px;border:1px solid transparent;border-radius:999px;background:rgba(255,255,255,.66);font-size:14px;font-weight:800;color:" + palette.text + ";cursor:pointer;}" +
-    ".chip[data-active='true']{background:" + palette.accent + ";color:" + palette.accentText + ";}" +
+    ".chip{display:inline-flex;align-items:center;justify-content:center;min-height:42px;padding:0 14px;border:1px solid transparent;border-radius:999px;background:rgba(255,255,255,.66);font-size:14px;font-weight:800;color:var(--widget-text);cursor:pointer;}" +
+    ".chip[data-active='true']{background:var(--widget-accent);color:var(--widget-accent-text);}" +
     ".amount-input,.name-input,.message-input{width:100%;padding:13px 15px;border:1px solid rgba(15,23,42,.08);border-radius:16px;background:rgba(255,255,255,.86);font:inherit;color:#111827;}" +
     ".message-input{min-height:92px;resize:vertical;}" +
-    ".hint,.submit-note{font-size:12px;line-height:1.5;color:" + palette.muted + ";}" +
+    ".hint,.submit-note{font-size:12px;line-height:1.5;color:var(--widget-muted);}" +
     ".error{display:none;padding:12px 14px;border-radius:16px;background:rgba(217,72,65,.12);font-size:13px;line-height:1.5;color:#8a1c16;}" +
     ".error[data-visible='true']{display:block;}" +
     ".actions{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-top:16px;}" +
@@ -499,7 +549,7 @@
     ".primary[disabled],.ghost[disabled]{opacity:.65;cursor:wait;transform:none;}" +
     "@media (max-width:720px){.banner{padding:18px;border-radius:22px;}.panel{padding:18px;border-radius:18px;}.headline{font-size:24px;}.footer,.actions{align-items:stretch;}.primary,.ghost{width:100%;}.modal{padding:18px;border-radius:22px;}}" +
     "</style>" +
-    '<section class="shell">' +
+    '<section class="shell" data-ready="false">' +
     '  <div class="banner">' +
     '    <div class="panel">' +
     '      <span class="badge"></span>' +
@@ -547,6 +597,7 @@
     "  </div>" +
     "</section>";
 
+  var shell = root.querySelector(".shell");
   var badge = root.querySelector(".badge");
   var headline = root.querySelector(".headline");
   var description = root.querySelector(".description");
@@ -567,6 +618,93 @@
   var closeButtons = root.querySelectorAll(".close, .close-button");
   var form = root.querySelector(".form");
   var activeAmount = options.presets[0];
+
+  function applyPalette() {
+    palette = getTheme(options.theme, options.accent);
+    shell.style.setProperty("--widget-background", palette.background);
+    shell.style.setProperty("--widget-panel", palette.panel);
+    shell.style.setProperty("--widget-text", palette.text);
+    shell.style.setProperty("--widget-muted", palette.muted);
+    shell.style.setProperty("--widget-accent", palette.accent);
+    shell.style.setProperty("--widget-accent-text", palette.accentText);
+    shell.style.setProperty("--widget-overlay", palette.overlay);
+  }
+
+  function renderPresetOptions() {
+    presetRow.textContent = "";
+    chipRow.textContent = "";
+
+    var presetPillsFragment = document.createDocumentFragment();
+    var presetChipsFragment = document.createDocumentFragment();
+
+    for (var presetIndex = 0; presetIndex < options.presets.length; presetIndex += 1) {
+      var presetAmount = options.presets[presetIndex];
+      var pill = createNode("span", "pill", formatMoney(presetAmount, options.currency));
+      presetPillsFragment.appendChild(pill);
+
+      var chip = createNode("button", "chip", formatMoney(presetAmount, options.currency));
+      chip.type = "button";
+      chip.setAttribute("data-amount", String(presetAmount));
+      chip.addEventListener("click", (function (amount) {
+        return function () {
+          setAmount(amount);
+        };
+      })(presetAmount));
+      presetChipsFragment.appendChild(chip);
+    }
+
+    presetRow.appendChild(presetPillsFragment);
+    chipRow.appendChild(presetChipsFragment);
+  }
+
+  function refreshUiFromOptions() {
+    applyPalette();
+    badge.textContent = options.creator + " 후원";
+    headline.textContent = options.headline;
+    description.textContent = options.description;
+    modalTitle.textContent = options.creator + " 후원하기";
+    modalCopy.textContent = "내 백엔드가 체크아웃 세션을 만들고 후원 기록을 저장한 뒤 결제를 확정합니다.";
+    openButton.textContent = options.buttonText;
+    noteText.textContent = options.note;
+    submitNote.textContent = "결제 완료 후 성공 페이지로 돌아오면 서버가 후원 내역을 최종 확정합니다.";
+    submitButton.textContent = busy ? "결제 페이지 준비 중..." : options.checkoutText;
+    amountInput.min = String(options.minAmount);
+    amountInput.max = String(options.maxAmount);
+    amountInput.step = "1000";
+    renderPresetOptions();
+    if (!activeAmount || activeAmount < options.minAmount || activeAmount > options.maxAmount) {
+      activeAmount = options.presets[0] || options.minAmount;
+    }
+    setAmount(activeAmount);
+  }
+
+  function applyWidgetSettings(nextSettings) {
+    if (!nextSettings || typeof nextSettings !== "object") {
+      return;
+    }
+
+    var nextMinAmount = parseAmount(nextSettings.minAmount, options.minAmount);
+    var nextMaxAmount = parseAmount(nextSettings.maxAmount, options.maxAmount);
+    options.creator = sanitizeText(nextSettings.creator, options.creator, 48);
+    options.headline = sanitizeText(nextSettings.headline, options.headline, 90);
+    options.description = sanitizeText(nextSettings.description, options.description, 180);
+    options.buttonText = sanitizeText(nextSettings.buttonText, options.buttonText, 30);
+    options.checkoutText = sanitizeText(nextSettings.checkoutText, options.checkoutText, 30);
+    options.theme = sanitizeText(nextSettings.theme, options.theme, 20);
+    options.currency = sanitizeText(nextSettings.currency, options.currency, 5).toUpperCase();
+    options.minAmount = nextMinAmount;
+    options.maxAmount = nextMaxAmount;
+    options.presets = parsePresets(
+      Array.isArray(nextSettings.presets) ? nextSettings.presets.join(",") : nextSettings.presets,
+      nextMinAmount,
+      nextMaxAmount
+    );
+    options.campaign = sanitizeText(nextSettings.campaign, options.campaign, 48);
+    options.method = sanitizeText(nextSettings.method, options.method, 32).toUpperCase();
+    options.note = sanitizeText(nextSettings.note, options.note, 120);
+    options.accent = sanitizeCssColor(nextSettings.accent) || options.accent;
+    refreshUiFromOptions();
+  }
 
   function setError(message) {
     errorBox.textContent = message || "";
@@ -655,7 +793,8 @@
       },
       body: JSON.stringify({
         ...payload,
-        embedSession: sessionToken
+        embedSession: sessionToken,
+        embedSessionNonce: runtimeSessionNonce
       })
     });
 
@@ -668,7 +807,8 @@
         },
         body: JSON.stringify({
           ...payload,
-          embedSession: sessionToken
+          embedSession: sessionToken,
+          embedSessionNonce: runtimeSessionNonce
         })
       });
     }
@@ -698,32 +838,7 @@
   submitNote.textContent = "결제 완료 후 성공 페이지로 돌아오면 서버가 후원 내역을 최종 확정합니다.";
   submitButton.textContent = options.checkoutText;
 
-  var presetPillsFragment = document.createDocumentFragment();
-  var presetChipsFragment = document.createDocumentFragment();
-
-  for (var presetIndex = 0; presetIndex < options.presets.length; presetIndex += 1) {
-    var presetAmount = options.presets[presetIndex];
-    var pill = createNode("span", "pill", formatMoney(presetAmount, options.currency));
-    presetPillsFragment.appendChild(pill);
-
-    var chip = createNode("button", "chip", formatMoney(presetAmount, options.currency));
-    chip.type = "button";
-    chip.setAttribute("data-amount", String(presetAmount));
-    chip.addEventListener("click", (function (amount) {
-      return function () {
-        setAmount(amount);
-      };
-    })(presetAmount));
-    presetChipsFragment.appendChild(chip);
-  }
-
-  presetRow.appendChild(presetPillsFragment);
-  chipRow.appendChild(presetChipsFragment);
-
-  amountInput.min = String(options.minAmount);
-  amountInput.max = String(options.maxAmount);
-  amountInput.step = "1000";
-  setAmount(activeAmount);
+  refreshUiFromOptions();
 
   openButton.addEventListener("click", openModal);
 
@@ -806,4 +921,12 @@
       setBusy(false);
     }
   });
+
+  ensureRuntimeSession(false)
+    .catch(function () {
+    })
+    .finally(function () {
+      shell.setAttribute("data-ready", "true");
+      trackInitialView();
+    });
 })();

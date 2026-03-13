@@ -1,13 +1,13 @@
 import { corsHeadersForOrigin, json, noContent } from "@/lib/embed-cors";
-import { createEmbedSessionToken, validateBootstrapRequest } from "@/lib/embed-token";
-import { getProjectEmbedState, isOriginAllowed, resolveRequestOrigin } from "@/lib/embed-store";
+import { createEmbedSessionNonce, createEmbedSessionToken, validateBootstrapRequest } from "@/lib/embed-token";
+import { buildWidgetBootstrapSettings, getProjectEmbedState, isOriginAllowed, resolveRequestOrigin } from "@/lib/embed-store";
 import { sanitizePageUrlForOrigin, sanitizeText } from "@/lib/embed-utils";
 import { buildRateLimitKey, checkRateLimit, getClientIp } from "@/lib/request-guards";
 
 export const runtime = "nodejs";
 
-const EMBED_SESSION_TTL_SECONDS = 60 * 5;
-const EMBED_SESSION_REFRESH_BUFFER_SECONDS = 60;
+const EMBED_SESSION_TTL_SECONDS = 60 * 2;
+const EMBED_SESSION_REFRESH_BUFFER_SECONDS = 45;
 
 export async function OPTIONS(request: Request) {
   return noContent(corsHeadersForOrigin(resolveRequestOrigin(request)));
@@ -21,7 +21,7 @@ export async function POST(request: Request) {
 
   try {
     body = (await request.json()) as Record<string, unknown>;
-  } catch (error) {
+  } catch {
     return respond({ error: "JSON 요청 본문이 필요합니다." }, 400);
   }
 
@@ -44,7 +44,7 @@ export async function POST(request: Request) {
   }
 
   if (!isOriginAllowed(state.allowedOrigins, requestOrigin)) {
-    return respond({ error: "이 origin은 허용되지 않았습니다." }, 403);
+    return respond({ error: "이 origin은 허용되지 않습니다." }, 403);
   }
 
   const sessionId = sanitizeText(body.sessionId, 80);
@@ -52,7 +52,7 @@ export async function POST(request: Request) {
   const pageUrl = sanitizePageUrlForOrigin(body.pageUrl, requestOrigin);
 
   const rateLimit = checkRateLimit({
-    key: buildRateLimitKey("embed-bootstrap", state.project.id, requestOrigin, getClientIp(request), sessionId, visitorId),
+    key: buildRateLimitKey("embed-bootstrap", state.project.id, requestOrigin, getClientIp(request)),
     limit: 60,
     windowMs: 10 * 60 * 1000
   });
@@ -60,12 +60,14 @@ export async function POST(request: Request) {
     return respond({ error: "요청이 너무 많습니다. 잠시 후 다시 시도해 주세요." }, 429);
   }
 
+  const sessionNonce = createEmbedSessionNonce();
   const expiresAt = Math.floor(Date.now() / 1000) + EMBED_SESSION_TTL_SECONDS;
   const sessionToken = createEmbedSessionToken({
     projectId: state.project.id,
     origin: requestOrigin,
     expiresAt,
     sessionId,
+    sessionNonce,
     visitorId
   });
 
@@ -74,8 +76,10 @@ export async function POST(request: Request) {
       expiresAt: new Date(expiresAt * 1000).toISOString(),
       pageUrl,
       projectId: state.project.id,
-      refreshAfterSeconds: Math.max(EMBED_SESSION_TTL_SECONDS - EMBED_SESSION_REFRESH_BUFFER_SECONDS, 30),
-      sessionToken
+      refreshAfterSeconds: Math.max(EMBED_SESSION_TTL_SECONDS - EMBED_SESSION_REFRESH_BUFFER_SECONDS, 20),
+      sessionNonce,
+      sessionToken,
+      settings: buildWidgetBootstrapSettings(state.settings)
     },
     200
   );

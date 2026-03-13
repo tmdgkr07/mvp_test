@@ -23,6 +23,7 @@
     note: "결제 링크는 내 백엔드에서 생성됩니다.",
     accent: "",
     target: "",
+    apiBase: "",
     bootstrapToken: "",
     embedToken: "",
     bootstrapPath: "/api/embed/bootstrap",
@@ -77,6 +78,16 @@
         })
     );
     return attr !== null && attr !== "" ? attr : defaults[name];
+  }
+
+  function readRawOption(name) {
+    var attr = script.getAttribute(
+      "data-" +
+        name.replace(/[A-Z]/g, function (char) {
+          return "-" + char.toLowerCase();
+        })
+    );
+    return attr !== null && attr !== "" ? attr : "";
   }
 
   function sanitizeText(value, fallback, maxLength) {
@@ -141,6 +152,14 @@
   function buildApiUrl(path) {
     var base = new URL(script.src, window.location.href);
     return new URL(path, base.origin).toString();
+  }
+
+  function buildUrlFromBase(baseValue, path) {
+    try {
+      return new URL(path, baseValue).toString();
+    } catch (error) {
+      return "";
+    }
   }
 
   function buildDefaultBootstrapUrl(apiUrl, trackingUrl) {
@@ -212,11 +231,22 @@
     return node;
   }
 
+  var apiBaseOption = String(readOption("apiBase") || "").trim();
   var minAmount = parseAmount(readOption("minAmount"), 1000);
   var maxAmount = parseAmount(readOption("maxAmount"), 500000);
-  var bootstrapPathOption = String(readOption("bootstrapPath") || "").trim();
-  var apiUrl = buildApiUrl(readOption("apiPath"));
-  var trackingUrl = buildApiUrl(readOption("trackingPath"));
+  var bootstrapPathOption = String(readRawOption("bootstrapPath") || "").trim();
+  var apiPathOption = String(readRawOption("apiPath") || "").trim();
+  var trackingPathOption = String(readRawOption("trackingPath") || "").trim();
+  var apiUrl = apiPathOption
+    ? buildApiUrl(apiPathOption)
+    : apiBaseOption
+      ? buildUrlFromBase(apiBaseOption, defaults.apiPath)
+      : buildApiUrl(defaults.apiPath);
+  var trackingUrl = trackingPathOption
+    ? buildApiUrl(trackingPathOption)
+    : apiBaseOption
+      ? buildUrlFromBase(apiBaseOption, defaults.trackingPath)
+      : buildApiUrl(defaults.trackingPath);
   var options = {
     creator: sanitizeText(readOption("creator"), defaults.creator, 48),
     headline: sanitizeText(readOption("headline"), defaults.headline, 90),
@@ -235,9 +265,14 @@
     note: sanitizeText(readOption("note"), defaults.note, 120),
     accent: sanitizeCssColor(readOption("accent")),
     target: String(readOption("target") || "").trim(),
+    apiBase: apiBaseOption,
     bootstrapToken: sanitizeText(readOption("bootstrapToken"), sanitizeText(readOption("embedToken"), defaults.embedToken, 600), 600),
     embedToken: sanitizeText(readOption("embedToken"), defaults.embedToken, 600),
-    bootstrapUrl: bootstrapPathOption ? buildApiUrl(bootstrapPathOption) : buildDefaultBootstrapUrl(apiUrl, trackingUrl),
+    bootstrapUrl: bootstrapPathOption
+      ? buildApiUrl(bootstrapPathOption)
+      : apiBaseOption
+        ? buildUrlFromBase(apiBaseOption, defaults.bootstrapPath)
+        : buildDefaultBootstrapUrl(apiUrl, trackingUrl),
     apiUrl: apiUrl,
     trackingUrl: trackingUrl
   };
@@ -255,6 +290,7 @@
   var previousBodyOverflow = "";
   var busy = false;
   var runtimeSessionToken = "";
+  var runtimeSessionNonce = "";
   var runtimeSessionExpiresAt = 0;
   var runtimeSessionPromise = null;
 
@@ -300,7 +336,7 @@
   }
 
   function hasActiveRuntimeSession(bufferMs) {
-    return !!runtimeSessionToken && runtimeSessionExpiresAt - Date.now() > (bufferMs || 0);
+    return !!runtimeSessionToken && !!runtimeSessionNonce && runtimeSessionExpiresAt - Date.now() > (bufferMs || 0);
   }
 
   function requestRuntimeSession() {
@@ -329,8 +365,9 @@
         }
 
         runtimeSessionToken = typeof data.sessionToken === "string" ? data.sessionToken : "";
+        runtimeSessionNonce = typeof data.sessionNonce === "string" ? data.sessionNonce : "";
         runtimeSessionExpiresAt = parseIsoTimestamp(data.expiresAt);
-        if (!runtimeSessionToken || !runtimeSessionExpiresAt) {
+        if (!runtimeSessionToken || !runtimeSessionNonce || !runtimeSessionExpiresAt) {
           throw new Error("임베드 세션 응답이 올바르지 않습니다.");
         }
 
@@ -355,7 +392,7 @@
     return runtimeSessionPromise;
   }
 
-  function buildTrackPayload(eventType, extra, sessionToken) {
+  function buildTrackPayload(eventType, extra, sessionToken, sessionNonce) {
     return {
       eventType: eventType,
       projectId: options.projectId,
@@ -368,6 +405,7 @@
       pagePath: pagePath,
       referrer: document.referrer || "",
       embedSession: sessionToken || undefined,
+      embedSessionNonce: sessionNonce || undefined,
       durationMs: extra && typeof extra.durationMs === "number" ? extra.durationMs : undefined,
       metadata: extra && extra.metadata ? extra.metadata : {}
     };
@@ -382,7 +420,7 @@
       }
 
       try {
-        var beaconPayload = buildTrackPayload(eventType, extra, runtimeSessionToken);
+        var beaconPayload = buildTrackPayload(eventType, extra, runtimeSessionToken, runtimeSessionNonce);
         var blob = new Blob([JSON.stringify(beaconPayload)], {
           type: "application/json"
         });
@@ -394,7 +432,7 @@
 
     ensureRuntimeSession(false)
       .then(function (sessionToken) {
-        var payload = buildTrackPayload(eventType, extra, sessionToken);
+        var payload = buildTrackPayload(eventType, extra, sessionToken, runtimeSessionNonce);
         return fetch(options.trackingUrl, {
           method: "POST",
           headers: {
@@ -409,6 +447,7 @@
 
           return ensureRuntimeSession(true).then(function (refreshedSessionToken) {
             payload.embedSession = refreshedSessionToken;
+            payload.embedSessionNonce = runtimeSessionNonce;
             return fetch(options.trackingUrl, {
               method: "POST",
               headers: {
@@ -655,7 +694,8 @@
       },
       body: JSON.stringify({
         ...payload,
-        embedSession: sessionToken
+        embedSession: sessionToken,
+        embedSessionNonce: runtimeSessionNonce
       })
     });
 
@@ -668,7 +708,8 @@
         },
         body: JSON.stringify({
           ...payload,
-          embedSession: sessionToken
+          embedSession: sessionToken,
+          embedSessionNonce: runtimeSessionNonce
         })
       });
     }

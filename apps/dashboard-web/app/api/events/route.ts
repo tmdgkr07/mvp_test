@@ -70,7 +70,7 @@ export async function POST(request: Request) {
   }
 
   const rateLimit = checkRateLimit({
-    key: buildRateLimitKey("events", body.type, projectId, sessionId, getClientIp(request)),
+    key: buildRateLimitKey("events", body.type, projectId, getClientIp(request)),
     limit: 120,
     windowMs: 10 * 60 * 1000
   });

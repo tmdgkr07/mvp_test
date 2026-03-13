@@ -16,7 +16,6 @@ function buildSnippet(baseUrl: string) {
     '  data-api-path="https://your-public-api.vercel.app/api/create-payment"',
     '  data-tracking-path="https://your-public-api.vercel.app/api/track"',
     '  data-project-id="your-project-id"',
-    '  data-bootstrap-token="issued-by-dashboard-web"',
     "  async",
     "></script>"
   ].join("\n");

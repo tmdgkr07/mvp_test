@@ -1,19 +1,47 @@
-﻿import type { Session } from "next-auth";
+import type { Session } from "next-auth";
 
-function normalizeEmail(value: string | null | undefined) {
-  return value?.trim().toLowerCase() || "";
+export type UserRole = "guest" | "creator" | "admin" | "super_admin";
+
+function normalizeRole(role: string | null | undefined): UserRole {
+  if (role === "super_admin" || role === "SUPER_ADMIN") {
+    return "super_admin";
+  }
+
+  if (role === "admin" || role === "ADMIN") {
+    return "admin";
+  }
+
+  if (role === "creator" || role === "CREATOR") {
+    return "creator";
+  }
+
+  return "guest";
 }
 
-export function isAdminEmail(email: string | null | undefined): boolean {
-  const target = normalizeEmail(email);
-  if (!target) return false;
+export function getUserRole(session: Session | null | undefined): UserRole {
+  if (!session?.user?.id) {
+    return "guest";
+  }
 
-  const adminEmails = (process.env.ADMIN_EMAILS || "")
-    .split(",")
-    .map((item) => normalizeEmail(item))
-    .filter(Boolean);
+  if (session.user.isSuperAdmin) {
+    return "super_admin";
+  }
 
-  return adminEmails.includes(target);
+  if (session.user.isAdmin) {
+    return "admin";
+  }
+
+  const normalized = normalizeRole(session.user.role);
+  return normalized === "guest" ? "creator" : normalized;
+}
+
+export function isAdminSession(session: Session | null | undefined): boolean {
+  const role = getUserRole(session);
+  return role === "admin" || role === "super_admin";
+}
+
+export function isSuperAdminSession(session: Session | null | undefined): boolean {
+  return getUserRole(session) === "super_admin";
 }
 
 export function canManageProject(session: Session | null, ownerId: string | null | undefined): boolean {
@@ -25,5 +53,5 @@ export function canManageProject(session: Session | null, ownerId: string | null
     return true;
   }
 
-  return isAdminEmail(session.user.email);
+  return isAdminSession(session);
 }

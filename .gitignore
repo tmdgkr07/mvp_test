@@ -3,6 +3,8 @@ node_modules
 .vercel
 npm-debug.log*
 tsconfig.tsbuildinfo
+docs/
+.tmp-security-check/
 .env
 .env.local
 .env.*.local
@@ -13,6 +15,8 @@ apps/*/.env.local
 apps/*/.env.*.local
 apps/*/start.out.log
 apps/*/start.err.log
+apps/*/prisma/secure-rls.sql
+apps/*/scripts/db-secure.mjs
 remember.md
 
 .vercel
