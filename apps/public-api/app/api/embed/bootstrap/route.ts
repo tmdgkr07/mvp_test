@@ -1,7 +1,17 @@
 import { corsHeadersForOrigin, json, noContent } from "@/lib/embed-cors";
-import { createEmbedSessionNonce, createEmbedSessionToken, validateBootstrapRequest } from "@/lib/embed-token";
-import { buildWidgetBootstrapSettings, getProjectEmbedState, isOriginAllowed, resolveRequestOrigin } from "@/lib/embed-store";
-import { sanitizePageUrlForOrigin, sanitizeText } from "@/lib/embed-utils";
+import {
+  createEmbedSessionNonce,
+  createEmbedSessionToken,
+  getBootstrapTokenFromRequest,
+  validateBootstrapRequest
+} from "@/lib/embed-token";
+import {
+  buildWidgetBootstrapSettings,
+  getProjectEmbedState,
+  isOriginAllowed,
+  resolveRequestOrigin
+} from "@/lib/embed-store";
+import { normalizeOptionalOrigin, sanitizePageUrlForOrigin, sanitizeText } from "@/lib/embed-utils";
 import { buildRateLimitKey, checkRateLimit, getClientIp } from "@/lib/request-guards";
 
 export const runtime = "nodejs";
@@ -31,28 +41,32 @@ export async function POST(request: Request) {
     return respond({ error: "존재하지 않는 projectId입니다." }, 400);
   }
 
-  if (!requestOrigin || requestOrigin === "null") {
+  const requestedEmbedOrigin = normalizeOptionalOrigin(body.embedOrigin);
+  const bootstrapToken = getBootstrapTokenFromRequest(request, body);
+  const effectiveOrigin = requestedEmbedOrigin && bootstrapToken ? requestedEmbedOrigin : requestOrigin;
+  if (!effectiveOrigin || effectiveOrigin === "null") {
     return respond({ error: "유효한 요청 origin이 필요합니다." }, 403);
   }
 
   const bootstrapValidation = validateBootstrapRequest(request, body, {
     projectId: state.project.id,
-    requireSignedEmbed: state.settings.requireSignedEmbed
+    requireSignedEmbed: state.settings.requireSignedEmbed,
+    expectedOrigin: effectiveOrigin
   });
   if (!bootstrapValidation.ok) {
     return respond({ error: bootstrapValidation.error }, 403);
   }
 
-  if (!isOriginAllowed(state.allowedOrigins, requestOrigin)) {
-    return respond({ error: "이 origin은 허용되지 않습니다." }, 403);
+  if (!isOriginAllowed(state.allowedOrigins, effectiveOrigin)) {
+    return respond({ error: "이 origin은 허용되지 않았습니다." }, 403);
   }
 
   const sessionId = sanitizeText(body.sessionId, 80);
   const visitorId = sanitizeText(body.visitorId, 80);
-  const pageUrl = sanitizePageUrlForOrigin(body.pageUrl, requestOrigin);
+  const pageUrl = sanitizePageUrlForOrigin(body.pageUrl, effectiveOrigin);
 
   const rateLimit = checkRateLimit({
-    key: buildRateLimitKey("embed-bootstrap", state.project.id, requestOrigin, getClientIp(request)),
+    key: buildRateLimitKey("embed-bootstrap", state.project.id, effectiveOrigin, getClientIp(request)),
     limit: 60,
     windowMs: 10 * 60 * 1000
   });
@@ -64,7 +78,7 @@ export async function POST(request: Request) {
   const expiresAt = Math.floor(Date.now() / 1000) + EMBED_SESSION_TTL_SECONDS;
   const sessionToken = createEmbedSessionToken({
     projectId: state.project.id,
-    origin: requestOrigin,
+    origin: effectiveOrigin,
     expiresAt,
     sessionId,
     sessionNonce,
@@ -73,6 +87,7 @@ export async function POST(request: Request) {
 
   return respond(
     {
+      embedOrigin: effectiveOrigin,
       expiresAt: new Date(expiresAt * 1000).toISOString(),
       pageUrl,
       projectId: state.project.id,

@@ -7,6 +7,30 @@ import { buildEmbedApiBaseUrl, buildEmbedPublicUrl, createOrderId, escapeHtmlAtt
 const DEFAULT_PRESET_AMOUNTS = [5000, 10000, 30000];
 const DEFAULT_MIN_AMOUNT = 1000;
 const DEFAULT_MAX_AMOUNT = 500000;
+const LAUNCHER_STYLES = new Set(["icon", "pill", "mini", "custom"]);
+
+export type LauncherStyle = "icon" | "pill" | "mini" | "custom";
+
+type LauncherConfig = {
+  icon?: string;
+  label?: string;
+  style: LauncherStyle;
+  subtext?: string;
+};
+
+function normalizeLauncherStyle(value?: string): LauncherStyle {
+  const style = String(value || "").trim().toLowerCase();
+  return LAUNCHER_STYLES.has(style) ? (style as LauncherStyle) : "pill";
+}
+
+function normalizeLauncherConfig(input?: Partial<LauncherConfig>): LauncherConfig {
+  return {
+    style: normalizeLauncherStyle(input?.style),
+    label: sanitizeText(input?.label, 36),
+    subtext: sanitizeText(input?.subtext, 80),
+    icon: sanitizeText(input?.icon, 6)
+  };
+}
 
 function getDefaultDescription(project: { name: string; tagline: string }) {
   return project.tagline?.trim() || `${project.name}에 힘이 되는 후원과 피드백을 받아보세요.`;
@@ -180,7 +204,8 @@ function buildSnippet(
   widgetBaseUrl: string,
   apiBaseUrl: string,
   origin: string,
-  input: Awaited<ReturnType<typeof getProjectEmbedState>>
+  input: Awaited<ReturnType<typeof getProjectEmbedState>>,
+  launcherInput?: Partial<LauncherConfig>
 ) {
   if (!input) {
     throw new Error("임베드 스니펫을 만들 프로젝트를 찾지 못했습니다.");
@@ -190,6 +215,18 @@ function buildSnippet(
     ["data-project-id", input.project.id],
     ["data-api-base", apiBaseUrl]
   ];
+  const launcher = normalizeLauncherConfig(launcherInput);
+
+  attrs.push(["data-launcher-style", launcher.style]);
+  if (launcher.label) {
+    attrs.push(["data-launcher-label", launcher.label]);
+  }
+  if (launcher.subtext) {
+    attrs.push(["data-launcher-subtext", launcher.subtext]);
+  }
+  if (launcher.icon) {
+    attrs.push(["data-launcher-icon", launcher.icon]);
+  }
 
   const tokenExpiresAt = Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 365;
   if (input.settings.requireSignedEmbed) {
@@ -204,13 +241,26 @@ function buildSnippet(
 
   const serializedAttrs = attrs
     .filter(([, value]) => value)
-    .map(([key, value]) => `${key}="${escapeHtmlAttribute(value)}"`)
-    .join(" ");
+    .map(([key, value]) => `  ${key}="${escapeHtmlAttribute(value)}"`)
+    .join("\n");
 
-  return `<script async src="${buildWidgetAssetUrl(widgetBaseUrl)}" ${serializedAttrs}></script>`;
+  return [
+    "<script",
+    "  async",
+    `  src="${buildWidgetAssetUrl(widgetBaseUrl)}"`,
+    serializedAttrs,
+    "></script>"
+  ]
+    .filter(Boolean)
+    .join("\n");
 }
 
-export async function issueEmbedSnippet(input: { projectId: string; origin: string; request: Request }) {
+export async function issueEmbedSnippet(input: {
+  launcher?: Partial<LauncherConfig>;
+  origin: string;
+  projectId: string;
+  request: Request;
+}) {
   const normalizedOrigin = normalizeOrigin(String(input.origin || "").trim());
   const state = await addAllowedOrigin(input.projectId, normalizedOrigin);
   if (!state) {
@@ -222,7 +272,7 @@ export async function issueEmbedSnippet(input: { projectId: string; origin: stri
     origin: normalizedOrigin,
     expiresAt: null,
     token: null,
-    snippet: buildSnippet(buildEmbedPublicUrl(input.request), buildEmbedApiBaseUrl(input.request), normalizedOrigin, state),
+    snippet: buildSnippet(buildEmbedPublicUrl(input.request), buildEmbedApiBaseUrl(input.request), normalizedOrigin, state, input.launcher),
     settings: state.settings
   };
 }

@@ -46,6 +46,15 @@ type EmbedSnippetPayload = {
   origin: string;
 };
 
+type LauncherStyle = "icon" | "pill" | "mini";
+
+type LauncherOption = {
+  description: string;
+  icon: string;
+  style: LauncherStyle;
+  title: string;
+};
+
 type EmbedSummary = {
   avgDwellSeconds: number;
   donationAttempts: number;
@@ -110,6 +119,27 @@ const DEFAULT_METRIC_TOGGLES: MetricToggleState = {
   duration: true,
   retention: true
 };
+
+const LAUNCHER_OPTIONS: LauncherOption[] = [
+  {
+    style: "icon",
+    title: "아이콘형",
+    icon: "🍚",
+    description: "가장 작게 노출되는 원형 버튼"
+  },
+  {
+    style: "pill",
+    title: "필형",
+    icon: "✨",
+    description: "짧은 문구와 함께 노출되는 기본 추천형"
+  },
+  {
+    style: "mini",
+    title: "미니카드",
+    icon: "🧾",
+    description: "서비스 설명을 짧게 보여주는 카드형"
+  }
+];
 
 function buildExternalMetrics(isAggregateView: boolean, projectCount: number, projectName?: string): MetricCard[] {
   const scopeLabel = isAggregateView ? "전체 배포 서비스 기준" : `${projectName ?? "선택 서비스"} 기준`;
@@ -341,6 +371,7 @@ export default function ServiceHub({ initialData = null }: { initialData?: Servi
   const [showEmbedGuide, setShowEmbedGuide] = useState(false);
   const [generatedEmbedCode, setGeneratedEmbedCode] = useState("");
   const [embedError, setEmbedError] = useState<string | null>(null);
+  const [launcherStyle, setLauncherStyle] = useState<LauncherStyle>("pill");
   const [embedSummary, setEmbedSummary] = useState<EmbedSummary | null>(initialData?.aggregateSummary ?? null);
   const [summaryLoading, setSummaryLoading] = useState(false);
   const [feedbackMessages, setFeedbackMessages] = useState<CreatorFeedbackMessage[]>(initialData?.aggregateFeedbackMessages ?? []);
@@ -373,6 +404,9 @@ export default function ServiceHub({ initialData = null }: { initialData?: Servi
   const launchedVoteCount = useMemo(() => eligibleProjects.reduce((sum, project) => sum + project.voteCount, 0), [eligibleProjects]);
   const selectedProject = eligibleProjects.find((project) => project.id === selectedKey);
   const isAggregateView = selectedKey === ALL_PROJECTS_KEY;
+  const activeLauncherLabel = launcherStyle === "icon" ? "후원 열기" : launcherStyle === "mini" ? "서비스 응원하기" : "후원하기";
+  const activeLauncherSubtext = launcherStyle === "mini" ? "작은 응원이 서비스 운영을 계속 이어가게 합니다." : "클릭하면 후원 모달이 열립니다.";
+  const activeLauncherIcon = launcherStyle === "icon" ? "🍚" : launcherStyle === "pill" ? "✨" : "🧾";
 
   useEffect(() => {
     if (!initialData || initialAggregateProjectIds.length === 0) {
@@ -463,7 +497,7 @@ export default function ServiceHub({ initialData = null }: { initialData?: Servi
         return;
       }
 
-      const cacheKey = `${selectedProject.id}:${embedOrigin}`;
+      const cacheKey = `${selectedProject.id}:${embedOrigin}:${launcherStyle}:${activeLauncherLabel}:${activeLauncherSubtext}:${activeLauncherIcon}`;
       const cachedSnippet = embedCodeCacheRef.current[cacheKey];
       if (cachedSnippet) {
         setGeneratedEmbedCode(cachedSnippet);
@@ -482,7 +516,11 @@ export default function ServiceHub({ initialData = null }: { initialData?: Servi
           },
           body: JSON.stringify({
             projectId: selectedProject.id,
-            origin: embedOrigin
+            origin: embedOrigin,
+            launcherStyle,
+            launcherLabel: activeLauncherLabel,
+            launcherSubtext: activeLauncherSubtext,
+            launcherIcon: activeLauncherIcon
           })
         });
 
@@ -516,7 +554,7 @@ export default function ServiceHub({ initialData = null }: { initialData?: Servi
     return () => {
       cancelled = true;
     };
-  }, [allowedOrigins, selectedProject]);
+  }, [activeLauncherIcon, activeLauncherLabel, activeLauncherSubtext, allowedOrigins, launcherStyle, selectedProject]);
 
   useEffect(() => {
     let cancelled = false;
@@ -1056,6 +1094,55 @@ export default function ServiceHub({ initialData = null }: { initialData?: Servi
                           </button>
                         ) : null}
                       </div>
+                      {!isAggregateView && selectedProject ? (
+                        <div className="mt-4 space-y-4">
+                          <div>
+                            <p className="text-xs font-bold uppercase tracking-wide text-gray-400">런처 스타일 선택</p>
+                            <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                              {LAUNCHER_OPTIONS.map((option) => {
+                                const active = launcherStyle === option.style;
+                                return (
+                                  <button
+                                    key={option.style}
+                                    type="button"
+                                    onClick={() => setLauncherStyle(option.style)}
+                                    className={`rounded-2xl border px-4 py-3 text-left transition-all ${active ? "border-[#D6B51D] bg-[#FFF8D6] shadow-[0_10px_20px_rgba(214,181,29,0.14)]" : "border-[#EBEBEB] bg-white hover:border-[#E5D7A2]"}`}
+                                  >
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-lg">{option.icon}</span>
+                                      <span className="text-sm font-black text-gray-900">{option.title}</span>
+                                    </div>
+                                    <p className="mt-2 text-xs leading-5 text-gray-500">{option.description}</p>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+
+                          <div className="rounded-2xl border border-[#F1EEE2] bg-[#FFFDF7] p-4">
+                            <p className="text-xs font-bold uppercase tracking-wide text-gray-400">런처 미리보기</p>
+                            <div className="mt-3 flex min-h-[92px] items-center justify-center rounded-2xl border border-dashed border-[#E5D7A2] bg-white px-4 py-5">
+                              {launcherStyle === "icon" ? (
+                                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[#FFDD00] text-2xl shadow-[0_16px_28px_rgba(26,26,26,0.16)]">{activeLauncherIcon}</div>
+                              ) : launcherStyle === "pill" ? (
+                                <div className="inline-flex items-center gap-2 rounded-full bg-[#FFDD00] px-5 py-3 text-sm font-black text-gray-900 shadow-[0_14px_24px_rgba(26,26,26,0.14)]">
+                                  <span>{activeLauncherIcon}</span>
+                                  <span>{activeLauncherLabel}</span>
+                                </div>
+                              ) : (
+                                <div className="w-full max-w-[320px] rounded-[24px] border border-[#EBEBEB] bg-white px-4 py-4 shadow-sm">
+                                  <div className="inline-flex items-center gap-2 rounded-full bg-[#FFF3B3] px-3 py-1 text-[11px] font-black text-[#6B5300]">
+                                    <span>{activeLauncherIcon}</span>
+                                    <span>MINI</span>
+                                  </div>
+                                  <p className="mt-3 text-base font-black text-gray-900">{activeLauncherLabel}</p>
+                                  <p className="mt-1 text-xs leading-5 text-gray-500">{activeLauncherSubtext}</p>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ) : null}
                       <pre className="mt-3 overflow-x-auto whitespace-pre-wrap break-all rounded-xl bg-gray-950 p-4 text-xs text-gray-100"><code className="block whitespace-pre-wrap break-all">{embedCode}</code></pre>
                       {copyMessage ? <p className="mt-3 text-xs text-emerald-600">{copyMessage}</p> : null}
                       {embedError ? <p className="mt-3 text-xs text-red-600">{embedError}</p> : null}

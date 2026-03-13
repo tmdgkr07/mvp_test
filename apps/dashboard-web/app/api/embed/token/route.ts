@@ -43,6 +43,10 @@ export async function POST(request: Request) {
   }
 
   const originValue = sanitizeText(body.origin, 1000, project.websiteUrl || "");
+  const launcherStyle = sanitizeText(body.launcherStyle, 16, "pill");
+  const launcherLabel = sanitizeText(body.launcherLabel, 36);
+  const launcherSubtext = sanitizeText(body.launcherSubtext, 80);
+  const launcherIcon = sanitizeText(body.launcherIcon, 6);
 
   try {
     if (!originValue) {
@@ -51,6 +55,12 @@ export async function POST(request: Request) {
 
     const origin = normalizeOrigin(originValue);
     const payload = await issueEmbedSnippet({
+      launcher: {
+        icon: launcherIcon,
+        label: launcherLabel,
+        style: launcherStyle as "icon" | "pill" | "mini" | "custom",
+        subtext: launcherSubtext
+      },
       projectId: project.id,
       origin,
       request

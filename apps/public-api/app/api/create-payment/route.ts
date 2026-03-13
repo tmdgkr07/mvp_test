@@ -9,7 +9,15 @@ import {
   resolveRequestOrigin,
   updateDonationAfterCreate
 } from "@/lib/embed-store";
-import { buildBaseUrl, createIdempotencyKey, parseAmount, resolveSafeReturnUrl, sanitizePageUrlForOrigin, sanitizeText } from "@/lib/embed-utils";
+import {
+  buildBaseUrl,
+  createIdempotencyKey,
+  normalizeOptionalOrigin,
+  parseAmount,
+  resolveSafeReturnUrl,
+  sanitizePageUrlForOrigin,
+  sanitizeText
+} from "@/lib/embed-utils";
 import { buildRateLimitKey, checkRateLimit, getClientIp } from "@/lib/request-guards";
 
 export const runtime = "nodejs";
@@ -51,7 +59,9 @@ export async function POST(request: Request) {
     return respond({ error: "존재하지 않는 projectId입니다." }, 400);
   }
 
-  if (!requestOrigin || requestOrigin === "null") {
+  const requestedEmbedOrigin = normalizeOptionalOrigin(body.embedOrigin);
+  const effectiveOrigin = requestedEmbedOrigin || requestOrigin;
+  if (!effectiveOrigin || effectiveOrigin === "null") {
     return respond({ error: "유효한 요청 origin이 필요합니다." }, 403);
   }
 
@@ -59,6 +69,7 @@ export async function POST(request: Request) {
   const sessionId = sanitizeText(body.sessionId, 80);
   const embedValidation = validateEmbedSessionRequest(request, body, {
     projectId: state.project.id,
+    expectedOrigin: effectiveOrigin,
     expectedSessionId: sessionId,
     expectedVisitorId: visitorId
   });
@@ -66,12 +77,12 @@ export async function POST(request: Request) {
     return respond({ error: embedValidation.error }, 403);
   }
 
-  if (!isOriginAllowed(state.allowedOrigins, requestOrigin)) {
-    return respond({ error: "이 origin은 허용되지 않습니다." }, 403);
+  if (!isOriginAllowed(state.allowedOrigins, effectiveOrigin)) {
+    return respond({ error: "이 origin은 허용되지 않았습니다." }, 403);
   }
 
   const rateLimit = checkRateLimit({
-    key: buildRateLimitKey("create-payment", state.project.id, requestOrigin, getClientIp(request)),
+    key: buildRateLimitKey("create-payment", state.project.id, effectiveOrigin, getClientIp(request)),
     limit: 12,
     windowMs: 10 * 60 * 1000
   });
@@ -85,8 +96,8 @@ export async function POST(request: Request) {
   const campaign = sanitizeText(body.campaign || state.settings.campaign, 48, state.settings.campaign);
   const message = sanitizeText(body.message, 120);
   const method = sanitizeText(body.method || state.settings.paymentMethod, 32, state.settings.paymentMethod).toUpperCase();
-  const safePageUrl = sanitizePageUrlForOrigin(body.pageUrl, requestOrigin);
-  const safeReturnUrl = resolveSafeReturnUrl(safePageUrl, requestOrigin);
+  const safePageUrl = sanitizePageUrlForOrigin(body.pageUrl, effectiveOrigin);
+  const safeReturnUrl = resolveSafeReturnUrl(safePageUrl, effectiveOrigin);
 
   if (!Number.isFinite(amount) || amount < state.settings.minAmount || amount > state.settings.maxAmount) {
     return respond({ error: "후원 금액이 허용 범위를 벗어났습니다." }, 400);
@@ -110,7 +121,7 @@ export async function POST(request: Request) {
       campaign,
       supporterName: sanitizeText(body.supporterName, 40),
       message,
-      originUrl: requestOrigin,
+      originUrl: effectiveOrigin,
       pageUrl: safeReturnUrl,
       method
     });
@@ -122,7 +133,7 @@ export async function POST(request: Request) {
       sessionId,
       creator,
       campaign,
-      host: parseHostFromUrl(safePageUrl) || sanitizeText(body.host, 255) || parseHostFromUrl(requestOrigin) || undefined,
+      host: parseHostFromUrl(safePageUrl) || sanitizeText(body.host, 255) || parseHostFromUrl(effectiveOrigin) || undefined,
       pageUrl: safePageUrl,
       pagePath: sanitizeText(body.pagePath, 500),
       referrer: sanitizeText(body.referrer, 1000),

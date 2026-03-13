@@ -11,6 +11,7 @@ declare global {
 }
 
 const rateLimitStore = globalThis.__babjuseyoRateLimitStore || new Map<string, RateLimitEntry>();
+const RATE_LIMIT_SOFT_CAP = 5_000;
 
 if (!globalThis.__babjuseyoRateLimitStore) {
   globalThis.__babjuseyoRateLimitStore = rateLimitStore;
@@ -29,6 +30,18 @@ function pruneExpiredEntries(now: number) {
   }
 
   globalThis.__babjuseyoRateLimitLastPruneAt = now;
+
+  if (rateLimitStore.size > RATE_LIMIT_SOFT_CAP) {
+    const overflowCount = rateLimitStore.size - RATE_LIMIT_SOFT_CAP;
+    let trimmed = 0;
+    for (const key of rateLimitStore.keys()) {
+      rateLimitStore.delete(key);
+      trimmed += 1;
+      if (trimmed >= overflowCount) {
+        break;
+      }
+    }
+  }
 }
 
 function sanitizeKeyPart(value: unknown, maxLength = 120) {
@@ -40,11 +53,45 @@ function sanitizeKeyPart(value: unknown, maxLength = 120) {
   return text.replace(/\s+/g, " ").slice(0, maxLength);
 }
 
+function normalizeIpCandidate(value: string) {
+  const candidate = String(value || "").trim().replace(/^"|"$/g, "");
+  if (!candidate) {
+    return "";
+  }
+
+  if (candidate.startsWith("[")) {
+    const closingIndex = candidate.indexOf("]");
+    if (closingIndex > 0) {
+      return candidate.slice(1, closingIndex);
+    }
+  }
+
+  if (/^\d{1,3}(\.\d{1,3}){3}:\d+$/.test(candidate)) {
+    return candidate.split(":")[0] || "";
+  }
+
+  return candidate;
+}
+
 export function getClientIp(request: Request) {
-  const forwardedFor = request.headers.get("x-forwarded-for");
-  const realIp = request.headers.get("x-real-ip");
-  const candidate = forwardedFor?.split(",")[0]?.trim() || realIp?.trim() || "";
-  return sanitizeKeyPart(candidate || "unknown", 80);
+  const trustedHeaders = [
+    "x-vercel-forwarded-for",
+    "cf-connecting-ip",
+    "fly-client-ip",
+    "x-real-ip",
+    "x-forwarded-for"
+  ];
+
+  for (const header of trustedHeaders) {
+    const rawValue = request.headers.get(header);
+    const firstHop = rawValue?.split(",")[0]?.trim() || "";
+    const candidate = normalizeIpCandidate(firstHop);
+    if (candidate) {
+      return sanitizeKeyPart(candidate, 80);
+    }
+  }
+
+  return "unknown";
 }
 
 export function buildRateLimitKey(...parts: unknown[]) {

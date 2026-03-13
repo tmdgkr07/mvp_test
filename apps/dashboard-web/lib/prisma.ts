@@ -1,10 +1,10 @@
 import fs from "node:fs";
 import path from "node:path";
-import { PrismaClient } from "@prisma/client";
+import type { PrismaClient as PrismaClientType } from "@prisma/client";
 
 declare global {
   // eslint-disable-next-line no-var
-  var prisma: PrismaClient | undefined;
+  var prisma: PrismaClientType | undefined;
 }
 
 function readEnvValue(filePath: string, key: string) {
@@ -67,6 +67,10 @@ if (runtimeDatabaseUrl && !process.env.DATABASE_URL) {
   process.env.DATABASE_URL = runtimeDatabaseUrl;
 }
 
+const { PrismaClient } = require("@prisma/client") as {
+  PrismaClient: typeof PrismaClientType;
+};
+
 const prismaOptions: ConstructorParameters<typeof PrismaClient>[0] = {
   log: process.env.NODE_ENV === "development" ? ["warn", "error"] : ["error"]
 };
@@ -79,7 +83,8 @@ if (runtimeDatabaseUrl) {
   };
 }
 
-export const prisma = global.prisma || new PrismaClient(prismaOptions);
+export const prisma: PrismaClientType =
+  global.prisma || new PrismaClient(prismaOptions);
 
 if (process.env.NODE_ENV !== "production") {
   global.prisma = prisma;
