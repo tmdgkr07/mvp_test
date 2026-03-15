@@ -18,5 +18,10 @@ apps/*/start.err.log
 apps/*/prisma/secure-rls.sql
 apps/*/scripts/db-secure.mjs
 remember.md
+.tmp-*
+.tmp-*.*
+.tmp-widget-host/
+test-results/
+playwright-report/
 
 .vercel

@@ -1,4 +1,5 @@
 ﻿import { prisma } from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
 import type { Session } from "next-auth";
 import { isAdminSession } from "@/lib/permissions";
 import type { AnalyticsEvent, CreateProjectInput, Feedback, Project, Sentiment, UpdateProjectInput } from "@/lib/types";
@@ -562,17 +563,24 @@ export async function updateUserAdminRole(input: {
     return mapAdminUser(user);
   }
 
-  if (user.role === "SUPER_ADMIN" && input.nextRole !== "SUPER_ADMIN") {
-    const superAdminCount = await countSuperAdminUsers();
-    if (superAdminCount <= 1) {
-      throw new Error("At least one super admin must remain assigned.");
-    }
-  }
-
   const roleAssignedAt = input.nextRole === "CREATOR" ? null : new Date();
   const roleAssignedById = input.nextRole === "CREATOR" ? null : input.actorUserId;
 
   const updated = await prisma.$transaction(async (tx) => {
+    if (user.role === "SUPER_ADMIN" && input.nextRole !== "SUPER_ADMIN") {
+      const lockedSuperAdmins = await tx.$queryRaw<Array<{ id: string }>>`
+        SELECT id
+        FROM "User"
+        WHERE role = 'SUPER_ADMIN'
+        FOR UPDATE
+      `;
+
+      const remainingSuperAdminCount = lockedSuperAdmins.filter((entry) => entry.id !== user.id).length;
+      if (remainingSuperAdminCount < 1) {
+        throw new Error("At least one super admin must remain assigned.");
+      }
+    }
+
     const nextUser = await tx.user.update({
       where: { id: user.id },
       data: {
@@ -609,7 +617,7 @@ export async function updateUserAdminRole(input: {
     });
 
     return nextUser;
-  });
+  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 
   const mapped = mapAdminUser(updated);
   if (!mapped && input.nextRole !== "CREATOR") {

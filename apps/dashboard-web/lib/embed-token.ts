@@ -250,9 +250,10 @@ export function getEmbedSessionNonceFromRequest(request: Request, body?: Record<
 export function validateBootstrapRequest(
   request: Request,
   body: Record<string, unknown> | undefined,
-  input: { projectId: string; requireSignedEmbed: boolean }
+  input: { projectId: string; requireSignedEmbed: boolean; expectedOrigin?: string }
 ) {
   const token = getBootstrapTokenFromRequest(request, body);
+  const expectedOrigin = String(input.expectedOrigin || resolveRequestOrigin(request) || "").trim();
 
   if (!token) {
     if (input.requireSignedEmbed) {
@@ -262,7 +263,7 @@ export function validateBootstrapRequest(
     return { ok: true as const, payload: null };
   }
 
-  return verifyEmbedToken(token, input.projectId, resolveRequestOrigin(request), {
+  return verifyEmbedToken(token, input.projectId, expectedOrigin, {
     requiredScope: BOOTSTRAP_SCOPE
   });
 }
@@ -272,6 +273,7 @@ export function validateEmbedSessionRequest(
   body: Record<string, unknown> | undefined,
   input: {
     projectId: string;
+    expectedOrigin?: string;
     expectedSessionId?: string;
     expectedVisitorId?: string;
   }
@@ -286,7 +288,8 @@ export function validateEmbedSessionRequest(
     return { ok: false as const, error: "임베드 세션 nonce가 필요합니다." };
   }
 
-  const verification = verifyEmbedToken(sessionToken, input.projectId, resolveRequestOrigin(request), {
+  const expectedOrigin = String(input.expectedOrigin || resolveRequestOrigin(request) || "").trim();
+  const verification = verifyEmbedToken(sessionToken, input.projectId, expectedOrigin, {
     requiredScope: SESSION_SCOPE,
     expectedSessionId: input.expectedSessionId,
     expectedVisitorId: input.expectedVisitorId

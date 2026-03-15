@@ -1,7 +1,7 @@
 import { corsHeadersForOrigin, json, noContent } from "@/lib/embed-cors";
 import { validateEmbedSessionRequest } from "@/lib/embed-token";
 import { getProjectEmbedState, insertEmbedAnalyticsEvent, isOriginAllowed, resolveRequestOrigin } from "@/lib/embed-store";
-import { parseAmount, sanitizePageUrlForOrigin, sanitizeText } from "@/lib/embed-utils";
+import { normalizeOptionalOrigin, parseAmount, sanitizePageUrlForOrigin, sanitizeText } from "@/lib/embed-utils";
 import { buildRateLimitKey, checkRateLimit, getClientIp } from "@/lib/request-guards";
 
 export const runtime = "nodejs";
@@ -68,7 +68,9 @@ export async function POST(request: Request) {
     return respond({ error: "존재하지 않는 projectId입니다." }, 400);
   }
 
-  if (!requestOrigin || requestOrigin === "null") {
+  const requestedEmbedOrigin = normalizeOptionalOrigin(body.embedOrigin);
+  const effectiveOrigin = requestedEmbedOrigin || requestOrigin;
+  if (!effectiveOrigin || effectiveOrigin === "null") {
     return respond({ error: "유효한 요청 origin이 필요합니다." }, 403);
   }
 
@@ -76,6 +78,7 @@ export async function POST(request: Request) {
   const sessionId = sanitizeText(body.sessionId, 80);
   const embedValidation = validateEmbedSessionRequest(request, body, {
     projectId: state.project.id,
+    expectedOrigin: effectiveOrigin,
     expectedSessionId: sessionId,
     expectedVisitorId: visitorId
   });
@@ -83,12 +86,12 @@ export async function POST(request: Request) {
     return respond({ error: embedValidation.error }, 403);
   }
 
-  if (!isOriginAllowed(state.allowedOrigins, requestOrigin)) {
-    return respond({ error: "이 origin은 허용되지 않습니다." }, 403);
+  if (!isOriginAllowed(state.allowedOrigins, effectiveOrigin)) {
+    return respond({ error: "이 origin은 허용되지 않았습니다." }, 403);
   }
 
   const rateLimit = checkRateLimit({
-    key: buildRateLimitKey("embed-track", state.project.id, requestOrigin, getClientIp(request), eventType),
+    key: buildRateLimitKey("embed-track", state.project.id, effectiveOrigin, getClientIp(request), eventType),
     limit: eventType === "view" ? 240 : 120,
     windowMs: 5 * 60 * 1000
   });
@@ -96,7 +99,7 @@ export async function POST(request: Request) {
     return respond({ error: "요청이 너무 많습니다. 잠시 후 다시 시도해 주세요." }, 429);
   }
 
-  const safePageUrl = sanitizePageUrlForOrigin(body.pageUrl, requestOrigin);
+  const safePageUrl = sanitizePageUrlForOrigin(body.pageUrl, effectiveOrigin);
 
   try {
     await insertEmbedAnalyticsEvent({
