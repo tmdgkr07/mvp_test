@@ -2,13 +2,21 @@ name: PR to Notion
 
 on:
   pull_request:
-    types: [opened] # PR이 새로 열렸을 때만 작동
+    types: [opened]
 
 jobs:
   sync-to-notion:
     runs-on: ubuntu-latest
     steps:
-      - name: Send PR details to Notion
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+          
+      - name: Install dependencies
+        run: pip install requests
+        
+      - name: Send Beautiful PR details to Notion
         env:
           NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
           NOTION_DATABASE_ID: ${{ secrets.NOTION_DATABASE_ID }}
@@ -17,46 +25,47 @@ jobs:
           PR_AUTHOR: ${{ github.event.pull_request.user.login }}
           PR_BODY: ${{ github.event.pull_request.body }}
         run: |
-          # PR 본문에서 줄바꿈 및 특수문자를 JSON 포맷에 맞게 이스케이프 처리
-          ESCAPED_BODY=$(echo "$PR_BODY" | jq -Rsa .)
-          
-          # Notion API로 보낼 JSON 데이터 구성
-          JSON_PAYLOAD=$(cat <<EOF
-          {
-            "parent": { "database_id": "$NOTION_DATABASE_ID" },
-            "properties": {
-              "이름": {
-                "title": [
-                  { "text": { "content": "$PR_TITLE" } }
-                ]
-              },
-              "URL": {
-                "url": "$PR_URL"
-              },
-              "작성자": {
-                "rich_text": [
-                  { "text": { "content": "$PR_AUTHOR" } }
-                ]
-              }
-            },
-            "children": [
-              {
-                "object": "block",
-                "type": "paragraph",
-                "paragraph": {
-                  "rich_text": [
-                    { "text": { "content": ${ESCAPED_BODY:-"\"본문 없음\""} } }
-                  ]
-                }
-              }
-            ]
-          }
-          EOF
-          )
+          python -c '
+          import os, requests, json
 
-          # Notion API 호출
-          curl -X POST https://api.notion.com/v1/pages \
-            -H "Authorization: Bearer $NOTION_TOKEN" \
-            -H "Content-Type: application/json" \
-            -H "Notion-Version: 2022-06-28" \
-            -d "$JSON_PAYLOAD"
+          notion_token = os.environ.get("NOTION_TOKEN")
+          database_id = os.environ.get("NOTION_DATABASE_ID")
+          title = os.environ.get("PR_TITLE", "No Title")
+          url = os.environ.get("PR_URL", "")
+          author = os.environ.get("PR_AUTHOR", "Unknown")
+          body = os.environ.get("PR_BODY", "")
+
+          def parse_markdown(text):
+              if not text: return [{"object": "block", "type": "paragraph", "paragraph": {"rich_text": [{"text": {"content": "본문 없음"}}]}}]
+              blocks = []
+              for line in text.split("\n")[:100]:
+                  line = line.strip()
+                  if not line: continue
+                  if line.startswith("### "): blocks.append({"object": "block", "type": "heading_3", "heading_3": {"rich_text": [{"text": {"content": line[4:]}}]}})
+                  elif line.startswith("## "): blocks.append({"object": "block", "type": "heading_2", "heading_2": {"rich_text": [{"text": {"content": line[3:]}}]}})
+                  elif line.startswith("# "): blocks.append({"object": "block", "type": "heading_1", "heading_1": {"rich_text": [{"text": {"content": line[2:]}}]}})
+                  elif line.startswith("- ") or line.startswith("* "): blocks.append({"object": "block", "type": "bulleted_list_item", "bulleted_list_item": {"rich_text": [{"text": {"content": line[2:]}}]}})
+                  else: blocks.append({"object": "block", "type": "paragraph", "paragraph": {"rich_text": [{"text": {"content": line}}]}})
+              return blocks
+
+          payload = {
+              "parent": {"database_id": database_id},
+              "properties": {
+                  "이름": {"title": [{"text": {"content": title}}]},
+                  "URL": {"url": url},
+                  "작성자": {"rich_text": [{"text": {"content": author}}]}
+              },
+              "children": parse_markdown(body)
+          }
+
+          notion_headers = {
+              "Authorization": f"Bearer {notion_token}",
+              "Content-Type": "application/json",
+              "Notion-Version": "2022-06-28"
+          }
+          
+          res = requests.post("https://api.notion.com/v1/pages", headers=notion_headers, data=json.dumps(payload))
+          if res.status_code != 200:
+              print(f"❌ 에러 발생: {res.text}")
+              exit(1)
+          '
