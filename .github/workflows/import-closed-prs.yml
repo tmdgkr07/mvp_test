@@ -8,75 +8,94 @@ jobs:
   import-prs:
     runs-on: ubuntu-latest
     steps:
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+          
+      - name: Install dependencies
+        run: pip install requests
+        
       - name: Fetch and Sync Closed PRs
         env:
           NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
           NOTION_DATABASE_ID: ${{ secrets.NOTION_DATABASE_ID }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # GitHub에서 기본 제공하는 토큰
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
         run: |
-          echo "GitHub API에서 Closed PR 데이터를 가져오는 중..."
-          
-          # 1. 최근 Closed PR 100개 가져오기 (필요시 per_page 조절)
-          PRS=$(curl -s -H "Authorization: Bearer $GITHUB_TOKEN" \
-            -H "Accept: application/vnd.github.v3+json" \
-            "https://api.github.com/repos/$REPO/pulls?state=closed&per_page=100")
-          
-          # 2. 배열 길이(PR 개수) 확인
-          PR_COUNT=$(echo "$PRS" | jq '. | length')
-          echo "총 $PR_COUNT 개의 Closed PR을 발견했습니다."
-          
-          if [ "$PR_COUNT" -eq 0 ]; then
-            echo "가져올 PR이 없습니다."
-            exit 0
-          fi
+          python -c '
+          import os, requests, json, time
 
-          # 3. 반복문으로 Notion API에 쏘기
-          echo "$PRS" | jq -c '.[]' | while read pr; do
-            TITLE=$(echo "$pr" | jq -r '.title')
-            URL=$(echo "$pr" | jq -r '.html_url')
-            AUTHOR=$(echo "$pr" | jq -r '.user.login')
-            BODY=$(echo "$pr" | jq -r '.body // "본문 없음"')
-            
-            # Notion 2000자 텍스트 제한 방어 및 JSON 이스케이프 처리
-            ESCAPED_BODY=$(echo "$BODY" | cut -c 1-1990 | jq -Rsa .)
-            
-            JSON_PAYLOAD=$(cat <<EOF
-            {
-              "parent": { "database_id": "$NOTION_DATABASE_ID" },
-              "properties": {
-                "이름": { "title": [ { "text": { "content": "$TITLE" } } ] },
-                "URL": { "url": "$URL" },
-                "작성자": { "rich_text": [ { "text": { "content": "$AUTHOR" } } ] }
-              },
-              "children": [
-                {
-                  "object": "block",
-                  "type": "paragraph",
-                  "paragraph": {
-                    "rich_text": [ { "text": { "content": ${ESCAPED_BODY} } } ]
-                  }
-                }
-              ]
-            }
-          EOF
-            )
-            
-            echo "Notion에 기록 중: $TITLE"
-            
-            # API 호출 (상태 코드 출력)
-            HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X POST https://api.notion.com/v1/pages \
-              -H "Authorization: Bearer $NOTION_TOKEN" \
-              -H "Content-Type: application/json" \
-              -H "Notion-Version: 2022-06-28" \
-              -d "$JSON_PAYLOAD")
+          notion_token = os.environ.get("NOTION_TOKEN")
+          database_id = os.environ.get("NOTION_DATABASE_ID")
+          github_token = os.environ.get("GITHUB_TOKEN")
+          repo = os.environ.get("REPO")
+
+          # 마크다운 텍스트를 Notion 블록 구조로 변환하는 핵심 함수
+          def parse_markdown(text):
+              if not text: 
+                  return [{"object": "block", "type": "paragraph", "paragraph": {"rich_text": [{"text": {"content": "본문 없음"}}]}}]
               
-            if [ "$HTTP_STATUS" -eq 200 ]; then
-              echo "✅ 성공"
-            else
-              echo "❌ 실패 (HTTP $HTTP_STATUS)"
-            fi
+              blocks = []
+              # Notion API는 한 번에 100개의 블록까지만 생성 가능하므로 제한
+              for line in text.split("\n")[:100]:
+                  line = line.strip()
+                  if not line: continue
+                  
+                  # 제목이나 리스트 기호를 감지하여 알맞은 Notion 블록으로 맵핑
+                  if line.startswith("### "): 
+                      blocks.append({"object": "block", "type": "heading_3", "heading_3": {"rich_text": [{"text": {"content": line[4:]}}]}})
+                  elif line.startswith("## "): 
+                      blocks.append({"object": "block", "type": "heading_2", "heading_2": {"rich_text": [{"text": {"content": line[3:]}}]}})
+                  elif line.startswith("# "): 
+                      blocks.append({"object": "block", "type": "heading_1", "heading_1": {"rich_text": [{"text": {"content": line[2:]}}]}})
+                  elif line.startswith("- ") or line.startswith("* "): 
+                      blocks.append({"object": "block", "type": "bulleted_list_item", "bulleted_list_item": {"rich_text": [{"text": {"content": line[2:]}}]}})
+                  else: 
+                      blocks.append({"object": "block", "type": "paragraph", "paragraph": {"rich_text": [{"text": {"content": line}}]}})
+              return blocks
+
+          print("GitHub API에서 Closed PR 데이터를 가져오는 중...")
+          url = f"https://api.github.com/repos/{repo}/pulls?state=closed&per_page=100"
+          headers = {"Authorization": f"Bearer {github_token}", "Accept": "application/vnd.github.v3+json"}
+          response = requests.get(url, headers=headers)
+          prs = response.json()
+
+          if not prs:
+              print("가져올 PR이 없습니다.")
+              exit(0)
+
+          print(f"총 {len(prs)}개의 Closed PR을 발견했습니다.")
+
+          for pr in prs:
+              title = pr.get("title", "No Title")
+              url = pr.get("html_url", "")
+              author = pr.get("user", {}).get("login", "Unknown")
+              body = pr.get("body") or "본문 없음"
+
+              payload = {
+                  "parent": {"database_id": database_id},
+                  "properties": {
+                      "이름": {"title": [{"text": {"content": title}}]},
+                      "URL": {"url": url},
+                      "작성자": {"rich_text": [{"text": {"content": author}}]}
+                  },
+                  "children": parse_markdown(body)
+              }
+
+              notion_headers = {
+                  "Authorization": f"Bearer {notion_token}",
+                  "Content-Type": "application/json",
+                  "Notion-Version": "2022-06-28"
+              }
               
-            # Notion API 초당 호출 제한 방지
-            sleep 0.5
-          done
+              print(f"Notion에 기록 중: {title}")
+              res = requests.post("https://api.notion.com/v1/pages", headers=notion_headers, data=json.dumps(payload))
+              
+              if res.status_code == 200:
+                  print("✅ 성공")
+              else:
+                  print(f"❌ 실패 (HTTP {res.status_code})")
+              
+              time.sleep(0.5)
+          '
