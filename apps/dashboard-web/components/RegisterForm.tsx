@@ -1,10 +1,9 @@
-﻿"use client";
+"use client";
 
 import Link from "next/link";
-import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { useState } from "react";
-import MarkdownRenderer from "@/components/MarkdownRenderer";
 import type { DisplayProjectStatus } from "@/lib/project-status";
 import { PROJECT_STATUS_OPTIONS } from "@/lib/project-status";
 
@@ -15,8 +14,6 @@ type FormState = {
   supportUrl: string;
   thumbnailUrl: string;
   status: DisplayProjectStatus;
-
-  // Template specific fields
   hookHeadline: string;
   hookSubtext: string;
   painPoints: string;
@@ -31,7 +28,6 @@ type ApiResult<T> = {
   data?: T;
   error?: { code: string; message: string };
 };
-
 
 const INITIAL_FORM: FormState = {
   name: "",
@@ -74,25 +70,25 @@ export default function RegisterForm() {
 
 ---
 
-## 🚨 Pain Points (이런 점이 불편하지 않으셨나요?)
-${form.painPoints.trim() || "(내용 없음)"}
+## Problem
+${form.painPoints.trim() || "(empty)"}
 
 ---
 
-## 💡 ${form.solutionHeadline.trim() || "우리의 핵심 솔루션"}
-${form.features.trim() || "(내용 없음)"}
+## ${form.solutionHeadline.trim() || "Solution"}
+${form.features.trim() || "(empty)"}
 
 ---
 
-## ⚙️ How it Works (이렇게 작동합니다)
-${form.howItWorks.trim() || "(내용 없음)"}
+## How it works
+${form.howItWorks.trim() || "(empty)"}
 
 ---
 
-## 🔄 기존 방식 vs 우리 서비스
-${form.beforeAfter.trim() || "(내용 없음)"}
+## Before vs after
+${form.beforeAfter.trim() || "(empty)"}
 
-${form.socialProof.trim() ? `\n---\n\n## 💬 Social Proof (사용자 후기 및 기대 반응)\n${form.socialProof.trim()}` : ""}
+${form.socialProof.trim() ? `\n---\n\n## Signals\n${form.socialProof.trim()}` : ""}
     `.trim();
 
     try {
@@ -113,7 +109,7 @@ ${form.socialProof.trim() ? `\n---\n\n## 💬 Social Proof (사용자 후기 및
       setSuccess({ id: payload.data.project.id, name: payload.data.project.name });
       setForm(INITIAL_FORM);
       setTimeout(() => {
-        router.push("/");
+        router.push("/explore");
         router.refresh();
       }, 700);
     } catch (submitError) {
@@ -124,224 +120,214 @@ ${form.socialProof.trim() ? `\n---\n\n## 💬 Social Proof (사용자 후기 및
   }
 
   return (
-    <main className="mx-auto max-w-3xl px-5 py-10 sm:py-14">
-      <div className="rounded-3xl bg-paper p-7 shadow-card sm:p-10">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div>
-            <p className="text-xs font-bold uppercase tracking-widest text-support">Builder Submission</p>
-            <h1 className="mt-2 text-3xl font-black text-ink">MVP 등록</h1>
-          </div>
-          <Link href="/" className="rounded-full border border-ink/20 px-4 py-2 text-sm font-semibold hover:bg-ink/5">
-            게시판 보기
-          </Link>
+    <div className="panel-card px-6 py-7 sm:px-7">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <p className="section-eyebrow">Builder Submission</p>
+          <h2 className="mt-3 text-2xl font-black text-slate-950 sm:text-3xl">서비스 등록 폼</h2>
+          <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-500">
+            필요한 정보만 빠르게 입력하고, 상세 소개는 아래 구조화 섹션에서 정리할 수 있습니다.
+          </p>
         </div>
 
-        <p className="mt-3 text-sm leading-relaxed text-ink/75">
-          등록 후 메인 카드와 SEO 상세 페이지(`/project/:id`)가 자동 생성됩니다.
-        </p>
-
-        {status !== "authenticated" && (
-          <div className="mt-6 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800">Google 로그인 후 등록할 수 있습니다.</div>
-        )}
-
-        <form className="mt-8 space-y-4" onSubmit={onSubmit}>
-          <label className="block">
-            <span className="text-sm font-semibold">프로젝트명 *</span>
-            <input
-              required
-              value={form.name}
-              onChange={(event) => updateField("name", event.target.value)}
-              className="mt-1.5 w-full rounded-xl border border-ink/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-support"
-              placeholder="예: Focus Sprint"
-            />
-          </label>
-
-          <label className="block">
-            <span className="text-sm font-semibold">한 줄 소개</span>
-            <input
-              value={form.tagline}
-              onChange={(event) => updateField("tagline", event.target.value)}
-              className="mt-1.5 w-full rounded-xl border border-ink/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-support"
-              placeholder="예: 25분 몰입 세션 자동 기록 도구"
-            />
-          </label>
-
-          <label className="block">
-            <span className="text-sm font-semibold">현재 진행 상태</span>
-            <select
-              value={form.status}
-              onChange={(event) => updateField("status", event.target.value as any)}
-              className="mt-1.5 w-full rounded-xl border border-ink/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-support"
-            >
-              {PROJECT_STATUS_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          {/* 템플릿 입력 영역 */}
-          <div className="mt-6 flex flex-col gap-6 rounded-2xl border border-ink/10 bg-canvas/30 p-5 sm:p-7">
-            <div>
-              <h3 className="text-lg font-bold text-ink">상세 소개 템플릿 (NoMakerLab 포맷)</h3>
-              <p className="mt-1 text-sm text-ink/60">아래 항목들을 작성하면 검증에 특화된 상세 페이지가 자동 구성됩니다.</p>
-            </div>
-
-            <div className="space-y-4">
-              <label className="block">
-                <span className="text-sm font-bold text-ink hover:text-support">1. Hook (관심을 끌 헤드라인)</span>
-                <p className="mb-1 text-xs text-ink/60">사용자의 눈길을 사로잡을 매력적인 헤드라인과 서브텍스트를 작성하세요.</p>
-                <div className="mt-1.5 space-y-2">
-                  <input
-                    value={form.hookHeadline}
-                    onChange={(event) => updateField("hookHeadline", event.target.value)}
-                    className="w-full rounded-xl border border-ink/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-support"
-                    placeholder="헤드라인 (예: 학습의 미래, AI가 바꿉니다)"
-                  />
-                  <input
-                    value={form.hookSubtext}
-                    onChange={(event) => updateField("hookSubtext", event.target.value)}
-                    className="w-full rounded-xl border border-ink/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-support"
-                    placeholder="서브텍스트 (예: 더 이상 획일적인 커리큘럼에 맞출 필요가 없습니다)"
-                  />
-                </div>
-              </label>
-
-              <label className="block">
-                <span className="text-sm font-bold text-ink hover:text-support">2. Pain Points (해결하려는 문제점)</span>
-                <p className="mb-1 text-xs text-ink/60">가장 공감할 수 있는 고객의 Pain Point를 이모지와 함께 적어주세요.</p>
-                <textarea
-                  value={form.painPoints}
-                  onChange={(event) => updateField("painPoints", event.target.value)}
-                  className="mt-1.5 h-20 w-full rounded-xl border border-ink/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-support"
-                  placeholder="- 😭 문제점 1&#10;- 😡 문제점 2"
-                />
-              </label>
-
-              <label className="block">
-                <span className="text-sm font-bold text-ink hover:text-support">3. Solution (핵심 솔루션과 기능)</span>
-                <div className="mt-1.5 space-y-2">
-                  <input
-                    value={form.solutionHeadline}
-                    onChange={(event) => updateField("solutionHeadline", event.target.value)}
-                    className="w-full rounded-xl border border-ink/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-support"
-                    placeholder="솔루션 헤드라인 (예: 우리의 완벽한 솔루션)"
-                  />
-                  <textarea
-                    value={form.features}
-                    onChange={(event) => updateField("features", event.target.value)}
-                    className="h-24 w-full rounded-xl border border-ink/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-support cursor-text"
-                    placeholder="주요 기능 설명들을 작성해주세요."
-                  />
-                </div>
-              </label>
-
-              <label className="block">
-                <span className="text-sm font-bold text-ink hover:text-support">4. How it Works (작동 방식)</span>
-                <p className="mb-1 text-xs text-ink/60">사용자가 서비스를 어떻게 이용하는지 단계별로 설명해주세요. (2~5단계)</p>
-                <textarea
-                  value={form.howItWorks}
-                  onChange={(event) => updateField("howItWorks", event.target.value)}
-                  className="mt-1.5 h-24 w-full rounded-xl border border-ink/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-support cursor-text"
-                  placeholder="1단계: 회원가입&#10;2단계: 사진 업로드&#10;3단계: 결과 확인"
-                />
-              </label>
-
-              <label className="block">
-                <span className="text-sm font-bold text-ink hover:text-support">5. Before & After (기존 방식 vs 우리 서비스)</span>
-                <p className="mb-1 text-xs text-ink/60">기존 방식과 비교했을 때 얼마나 좋아지는지 보여주세요.</p>
-                <textarea
-                  value={form.beforeAfter}
-                  onChange={(event) => updateField("beforeAfter", event.target.value)}
-                  className="mt-1.5 h-20 w-full rounded-xl border border-ink/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-support cursor-text"
-                  placeholder="기존: 복잡하고 오래 걸림&#10;우리 서비스: 단 한 번의 클릭으로 해결!"
-                />
-              </label>
-
-              <label className="block">
-                <span className="text-sm font-bold text-ink hover:text-support">6. Social Proof (사용자 후기)</span>
-                <p className="mb-1 text-xs text-ink/60">기대 반응이나 예상 후기도 좋습니다.</p>
-                <textarea
-                  value={form.socialProof}
-                  onChange={(event) => updateField("socialProof", event.target.value)}
-                  className="mt-1.5 h-20 w-full rounded-xl border border-ink/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-support"
-                  placeholder="진짜 제가 원하던 거였어요! (대학생, 25세)"
-                />
-              </label>
-            </div>
-          </div>
-
-          <label className="block mt-6">
-            <span className="text-sm font-semibold">프로젝트 URL *</span>
-            <input
-              type="text"
-              required
-              value={form.websiteUrl}
-              onChange={(event) => updateField("websiteUrl", event.target.value)}
-              className="mt-1.5 w-full rounded-xl border border-ink/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-support"
-              placeholder="https://your-mvp.com"
-            />
-          </label>
-
-          <label className="block">
-            <span className="text-sm font-semibold">후원 URL *</span>
-            <input
-              type="text"
-              required
-              value={form.supportUrl}
-              onChange={(event) => updateField("supportUrl", event.target.value)}
-              className="mt-1.5 w-full rounded-xl border border-ink/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-support"
-              placeholder="https://toss.me/..."
-            />
-          </label>
-
-          <label className="block">
-            <span className="text-sm font-semibold">썸네일 이미지 URL (선택)</span>
-            <input
-              type="text"
-              value={form.thumbnailUrl}
-              onChange={(event) => updateField("thumbnailUrl", event.target.value)}
-              className="mt-1.5 w-full rounded-xl border border-ink/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-support"
-              placeholder="https://images.example.com/thumb.png"
-            />
-            <details className="mt-2 text-xs text-ink/70">
-              <summary className="cursor-pointer font-bold hover:text-ink">URL 제작 요령 (클릭하여 열기)</summary>
-              <div className="mt-2 space-y-1 pl-2">
-                <p>썸네일 URL에는 반드시 <strong>`.png`, `.jpg`, `.jpeg` 등 확장자로 끝나는 순수 이미지 직접 주소(Direct Link)</strong>만 들어가야 합니다. 앨범이나 웹페이지 주소는 안 됩니다!</p>
-                <div className="mt-1">
-                  <span className="font-semibold text-ink">🛠️ 무료로 만드는 방법:</span>
-                  <ul className="list-inside list-disc">
-                    <li><a href="https://imgur.com/" target="_blank" rel="noopener noreferrer" className="text-support underline">Imgur</a> 혹은 원하시는 이미지 호스팅 사이트에 이미지를 업로드하세요.</li>
-                    <li>업로드된 이미지 위에서 <strong>오른쪽 마우스 클릭</strong>을 하세요.</li>
-                    <li><strong>'이미지 주소 복사(Copy image address)'</strong>를 누른 후 여기에 붙여넣으세요.</li>
-                    <li className="text-red-500">주의: 구글 드라이브나 노션 링크는 보안 문제로 썸네일로 보이지 않습니다!</li>
-                  </ul>
-                </div>
-              </div>
-            </details>
-          </label>
-
-          {error && <p className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
-
-          {success && (
-            <div className="rounded-xl bg-support/10 px-4 py-3 text-sm text-support">
-              <p>
-                <strong>{success.name}</strong> 등록 완료
-              </p>
-              <p className="mt-1">잠시 후 메인 페이지로 이동합니다.</p>
-            </div>
-          )}
-
-          <button
-            type="submit"
-            disabled={loading || !session?.user}
-            className="w-full rounded-xl bg-ink px-4 py-3 text-sm font-bold text-white disabled:cursor-not-allowed disabled:bg-ink/70"
-          >
-            {loading ? "등록 중..." : "MVP 등록하기"}
-          </button>
-        </form>
+        <Link href="/explore" className="brand-button-secondary px-5 py-2.5">
+          탐색 페이지 보기
+        </Link>
       </div>
-    </main>
+
+      {status !== "authenticated" ? (
+        <div className="mt-5 rounded-[18px] border border-[#ffe0a6] bg-[#fff8e8] px-4 py-3 text-sm text-[#9a6b09]">
+          Google 로그인 상태를 확인하는 중입니다. 인증이 완료되어야 등록 버튼이 활성화됩니다.
+        </div>
+      ) : null}
+
+      <form className="mt-6 space-y-6" onSubmit={onSubmit}>
+        <section className="rounded-[24px] border border-[#dce8f7] bg-[#f8fbff] p-5">
+          <h3 className="text-lg font-black text-slate-950">기본 정보</h3>
+          <div className="mt-4 grid gap-4 md:grid-cols-2">
+            <label className="block md:col-span-2">
+              <span className="field-label">서비스명 *</span>
+              <input
+                required
+                value={form.name}
+                onChange={(event) => updateField("name", event.target.value)}
+                className="field-input"
+                placeholder="feedback4U"
+              />
+            </label>
+
+            <label className="block md:col-span-2">
+              <span className="field-label">한 줄 소개</span>
+              <input
+                value={form.tagline}
+                onChange={(event) => updateField("tagline", event.target.value)}
+                className="field-input"
+                placeholder="Collect feedback and proof signals in one place."
+              />
+            </label>
+
+            <label className="block">
+              <span className="field-label">현재 상태</span>
+              <select
+                value={form.status}
+                onChange={(event) => updateField("status", event.target.value as DisplayProjectStatus)}
+                className="field-select"
+              >
+                {PROJECT_STATUS_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="block">
+              <span className="field-label">썸네일 URL</span>
+              <input
+                type="text"
+                value={form.thumbnailUrl}
+                onChange={(event) => updateField("thumbnailUrl", event.target.value)}
+                className="field-input"
+                placeholder="https://images.example.com/thumb.png"
+              />
+            </label>
+          </div>
+        </section>
+
+        <section className="rounded-[24px] border border-[#dce8f7] bg-white p-5">
+          <h3 className="text-lg font-black text-slate-950">상세 소개 구조</h3>
+          <p className="mt-2 text-sm leading-6 text-slate-500">
+            아래 내용을 채우면 공개 상세 페이지용 설명 문서가 자동으로 구성됩니다.
+          </p>
+
+          <div className="mt-4 grid gap-4">
+            <label className="block">
+              <span className="field-label">헤드라인과 서브카피</span>
+              <div className="grid gap-3 md:grid-cols-2">
+                <input
+                  value={form.hookHeadline}
+                  onChange={(event) => updateField("hookHeadline", event.target.value)}
+                  className="field-input"
+                  placeholder="Your headline"
+                />
+                <input
+                  value={form.hookSubtext}
+                  onChange={(event) => updateField("hookSubtext", event.target.value)}
+                  className="field-input"
+                  placeholder="Supporting sentence"
+                />
+              </div>
+            </label>
+
+            <label className="block">
+              <span className="field-label">문제 정의</span>
+              <textarea
+                value={form.painPoints}
+                onChange={(event) => updateField("painPoints", event.target.value)}
+                className="field-textarea"
+                placeholder="사용자가 겪는 문제와 현재 불편함을 적어주세요."
+              />
+            </label>
+
+            <label className="block">
+              <span className="field-label">해결 방식과 기능</span>
+              <div className="grid gap-3">
+                <input
+                  value={form.solutionHeadline}
+                  onChange={(event) => updateField("solutionHeadline", event.target.value)}
+                  className="field-input"
+                  placeholder="Solution headline"
+                />
+                <textarea
+                  value={form.features}
+                  onChange={(event) => updateField("features", event.target.value)}
+                  className="field-textarea"
+                  placeholder="핵심 기능을 줄 단위로 정리하세요."
+                />
+              </div>
+            </label>
+
+            <label className="block">
+              <span className="field-label">작동 방식</span>
+              <textarea
+                value={form.howItWorks}
+                onChange={(event) => updateField("howItWorks", event.target.value)}
+                className="field-textarea"
+                placeholder="1. 등록 2. 연결 3. 피드백 수집"
+              />
+            </label>
+
+            <label className="block">
+              <span className="field-label">기존 방식 대비 차이</span>
+              <textarea
+                value={form.beforeAfter}
+                onChange={(event) => updateField("beforeAfter", event.target.value)}
+                className="field-textarea"
+                placeholder="기존 방식과 비교해 어떤 점이 달라지는지 적어주세요."
+              />
+            </label>
+
+            <label className="block">
+              <span className="field-label">예상 반응 또는 증거</span>
+              <textarea
+                value={form.socialProof}
+                onChange={(event) => updateField("socialProof", event.target.value)}
+                className="field-textarea"
+                placeholder="사용자 반응, 지표, 메모를 자유롭게 적어주세요."
+              />
+            </label>
+          </div>
+        </section>
+
+        <section className="rounded-[24px] border border-[#dce8f7] bg-[#f8fbff] p-5">
+          <h3 className="text-lg font-black text-slate-950">서비스 링크</h3>
+
+          <div className="mt-4 grid gap-4">
+            <label className="block">
+              <span className="field-label">프로젝트 URL *</span>
+              <input
+                type="text"
+                required
+                value={form.websiteUrl}
+                onChange={(event) => updateField("websiteUrl", event.target.value)}
+                className="field-input"
+                placeholder="https://your-service.com"
+              />
+            </label>
+
+            <label className="block">
+              <span className="field-label">후원 URL *</span>
+              <input
+                type="text"
+                required
+                value={form.supportUrl}
+                onChange={(event) => updateField("supportUrl", event.target.value)}
+                className="field-input"
+                placeholder="https://toss.me/..."
+              />
+            </label>
+          </div>
+        </section>
+
+        {error ? <p className="rounded-[18px] bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p> : null}
+
+        {success ? (
+          <div className="rounded-[18px] bg-[#e9f9ef] px-4 py-4 text-sm text-[#15803d]">
+            <p>
+              <strong>{success.name}</strong> 등록이 완료되었습니다.
+            </p>
+            <p className="mt-1">곧바로 탐색 페이지로 이동합니다.</p>
+          </div>
+        ) : null}
+
+        <button
+          type="submit"
+          disabled={loading || !session?.user}
+          className="brand-button w-full rounded-[22px] py-3.5 text-base disabled:cursor-not-allowed disabled:opacity-70"
+        >
+          {loading ? "등록 중..." : "서비스 등록하기"}
+        </button>
+      </form>
+    </div>
   );
 }

@@ -1,8 +1,9 @@
-﻿"use client";
+"use client";
 
-import { useState } from "react";
-import { useSession } from "next-auth/react";
+import { PencilLine, Trash2, X } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
+import { useState } from "react";
 import ProjectEditor from "@/components/ProjectEditor";
 import type { Project } from "@/lib/types";
 
@@ -39,7 +40,7 @@ export default function ProjectDetailClient({ project }: { project: Project }) {
         throw new Error(payload.error?.message || "삭제에 실패했습니다.");
       }
 
-      router.push("/");
+      router.push("/explore");
       router.refresh();
     } catch (deleteError) {
       setError(deleteError instanceof Error ? deleteError.message : "오류가 발생했습니다.");
@@ -49,39 +50,44 @@ export default function ProjectDetailClient({ project }: { project: Project }) {
   }
 
   return (
-    <section className="relative z-50 w-full mb-6">
-      <div className="flex justify-end gap-2">
-        {!editing ? (
-          <button
-            type="button"
-            onClick={() => setEditing(true)}
-            className="rounded-xl bg-ink px-5 py-2 text-sm font-semibold text-white"
-          >
-            수정하기
-          </button>
-        ) : (
-          <button
-            type="button"
-            onClick={() => setEditing(false)}
-            className="rounded-xl border border-ink/20 px-4 py-2 text-sm font-semibold hover:bg-ink/5"
-          >
-            수정 닫기
-          </button>
-        )}
+    <section className="mb-6 space-y-4">
+      <div className="soft-card flex flex-col gap-4 px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="section-eyebrow">Owner Controls</p>
+          <p className="mt-2 text-lg font-black text-slate-950">프로젝트 소개와 링크를 직접 수정할 수 있습니다.</p>
+        </div>
 
-        <button
-          type="button"
-          onClick={onDelete}
-          disabled={deleting}
-          className="rounded-xl bg-red-600 px-5 py-2 text-sm font-semibold text-white disabled:opacity-70"
-        >
-          {deleting ? "삭제 중..." : "삭제하기"}
-        </button>
+        <div className="flex flex-wrap gap-3">
+          {!editing ? (
+            <button type="button" onClick={() => setEditing(true)} className="brand-button gap-2 px-5 py-2.5">
+              <PencilLine className="h-4 w-4" />
+              서비스 편집
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setEditing(false)}
+              className="brand-button-secondary gap-2 px-5 py-2.5"
+            >
+              <X className="h-4 w-4" />
+              편집 닫기
+            </button>
+          )}
+
+          <button
+            type="button"
+            onClick={onDelete}
+            disabled={deleting}
+            className="inline-flex items-center justify-center gap-2 rounded-full bg-[#dc2626] px-5 py-2.5 text-sm font-bold text-white transition-colors hover:bg-[#b91c1c] disabled:opacity-70"
+          >
+            <Trash2 className="h-4 w-4" />
+            {deleting ? "삭제 중..." : "삭제하기"}
+          </button>
+        </div>
       </div>
 
-      {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
-
-      {editing && <ProjectEditor project={project} />}
+      {error ? <p className="rounded-[20px] bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p> : null}
+      {editing ? <ProjectEditor project={project} /> : null}
     </section>
   );
 }

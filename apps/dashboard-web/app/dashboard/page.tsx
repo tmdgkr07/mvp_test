@@ -10,7 +10,7 @@ import { getPlatformHubBootstrap } from "@/lib/platform-hub";
 import { getServiceHubBootstrap } from "@/lib/service-hub";
 
 export const metadata: Metadata = {
-  title: "워크스페이스 | 밥주세요",
+  title: "워크스페이스 | feedback4U",
   description: "내 서비스 운영과 설정을 관리하는 워크스페이스"
 };
 

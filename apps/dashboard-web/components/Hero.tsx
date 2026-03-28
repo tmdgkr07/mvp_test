@@ -1,93 +1,104 @@
-"use client";
-
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import {
+  BarChart3,
+  BrainCircuit,
+  CloudUpload,
+  PieChart,
+  Server,
+  ShieldCheck
+} from "lucide-react";
 
-interface GlobalStats {
-    totalProjects: number;
-    totalUsers: number;
-    totalVotes: number;
-}
+const FLOATING_WIDGETS = [
+  { icon: CloudUpload, label: "Launch", className: "left-2 top-4 sm:left-0" },
+  { icon: ShieldCheck, label: "Verify", className: "right-10 top-0 sm:right-6" },
+  { icon: BrainCircuit, label: "AI", className: "right-0 top-12 sm:right-0" },
+  { icon: BarChart3, label: "Insights", className: "left-6 bottom-10 sm:left-10" },
+  { icon: PieChart, label: "Signals", className: "right-2 bottom-6 sm:right-4" }
+];
 
 export default function Hero() {
-    const [stats, setStats] = useState<GlobalStats | null>(null);
+  return (
+    <section className="panel-card relative overflow-hidden bg-[linear-gradient(135deg,#9bc6ff_0%,#7eaeea_42%,#b9d9ff_100%)] px-8 pb-16 pt-10 text-white sm:px-12 sm:pb-20 sm:pt-14">
+      <div className="absolute left-[-56px] top-[-68px] h-52 w-52 rounded-full bg-white/22 blur-3xl" />
+      <div className="absolute bottom-[-92px] right-[-64px] h-64 w-64 rounded-full bg-[#d9ecff]/55 blur-3xl" />
+      <div className="absolute inset-x-0 bottom-0 h-28 bg-[linear-gradient(180deg,rgba(255,255,255,0)_0%,rgba(233,244,255,0.72)_100%)]" />
 
-    useEffect(() => {
-        async function fetchStats() {
-            try {
-                const res = await fetch("/api/stats");
-                const json = await res.json();
-                if (json.data) setStats(json.data);
-            } catch (e) {
-                console.error("Failed to fetch statistics", e);
-            }
-        }
-        fetchStats();
-    }, []);
+      <div className="relative grid gap-12 lg:grid-cols-[1.04fr_0.96fr] lg:items-center">
+        <div className="max-w-xl">
+          <h1 className="text-[2.5rem] font-black leading-[1.06] text-white sm:text-[3.4rem]">
+            feedback4U: The AI
+            <br />
+            Builder Support Platform.
+          </h1>
+          <p className="mt-5 max-w-lg text-base leading-8 text-white/92 sm:text-[1.35rem] sm:leading-9">
+            Accelerate your AI development with verified feedback and robust infrastructure.
+          </p>
 
-    const fmt = (n: number) => new Intl.NumberFormat("ko-KR").format(n);
+          <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+            <Link href="/register" className="brand-button px-7 py-3.5 text-sm font-black">
+              Register Service
+            </Link>
+            <Link
+              href="/explore"
+              className="inline-flex items-center justify-center rounded-full border border-[#3b84d5] bg-white/82 px-7 py-3.5 text-sm font-black text-[#1d79d8] transition-all duration-200 hover:-translate-y-0.5 hover:bg-white"
+            >
+              Explore Services
+            </Link>
+          </div>
+        </div>
 
-    return (
-        <section className="bg-white px-6 pt-20 pb-24 sm:pt-28 sm:pb-32">
-            <div className="mx-auto max-w-3xl text-center">
+        <div className="relative mx-auto flex h-[320px] w-full max-w-[430px] items-center justify-center sm:h-[360px]">
+          <div className="absolute inset-0 rounded-[34px] bg-white/14 blur-3xl" />
 
-                {/* Badge */}
-                <div className="inline-flex items-center gap-2 rounded-full bg-[#FFF9C4] border border-[#FFE066] px-4 py-2 text-sm font-bold text-[#8B6914] mb-8">
-                    <span className="animate-float inline-block">🍚</span>
-                    AI 빌더를 위한 검증 플랫폼
+          <div className="relative z-10 flex w-[220px] flex-col gap-4 sm:w-[236px]">
+            {[0, 1, 2].map((index) => (
+              <div
+                key={index}
+                className={`animate-drift rounded-[26px] border border-white/50 bg-white/88 p-4 text-slate-900 shadow-[0_22px_50px_-32px_rgba(23,68,129,0.46)] ${
+                  index === 1 ? "translate-x-4" : index === 2 ? "-translate-x-2" : ""
+                }`}
+                style={{ animationDelay: `${index * 0.35}s` }}
+              >
+                <div className="mb-3 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="h-2.5 w-2.5 rounded-full bg-[#7fb5ff]" />
+                    <span className="h-2.5 w-2.5 rounded-full bg-[#b5d6ff]" />
+                  </div>
+                  <Server className="h-5 w-5 text-[#1d79d8]" />
                 </div>
-
-                {/* Main heading */}
-                <h1 className="text-5xl sm:text-7xl font-black text-ink leading-[1.05] tracking-tight">
-                    후원과 피드백으로<br />
-                    <span className="relative inline-block">
-                        <span className="relative z-10">검증이 남는</span>
-                        <span className="absolute -bottom-1 left-0 right-0 h-4 sm:h-5 bg-accent/40 -z-0 rounded-sm" />
-                    </span>{" "}
-                    구조
-                </h1>
-
-                {/* Subtext */}
-                <p className="mt-7 text-lg sm:text-xl text-ink-light leading-relaxed max-w-xl mx-auto">
-                    AI로 서비스를 만들었지만 다음이 막막한가요?<br />
-                    후원 + 피드백을 결과 화면에 임베드해, 검증 데이터와 초기 수익을 동시에 만드세요.
-                </p>
-
-                {/* CTAs */}
-                <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-3">
-                    <Link
-                        href="/register"
-                        className="w-full sm:w-auto rounded-full bg-accent hover:bg-accent-dark px-8 py-4 text-base font-bold text-ink transition-all duration-200 shadow-btn hover:shadow-card-hover hover:-translate-y-0.5 active:translate-y-0"
-                    >
-                        내 서비스 등록하기 →
-                    </Link>
-                    <Link
-                        href="/explore"
-                        className="w-full sm:w-auto rounded-full border-2 border-[#EBEBEB] hover:border-ink/30 bg-white px-8 py-4 text-base font-bold text-ink transition-all duration-200"
-                    >
-                        서비스 둘러보기
-                    </Link>
+                <div className="h-2 rounded-full bg-[#dcecff]" />
+                <div className="mt-2 h-2 w-4/5 rounded-full bg-[#c6e0ff]" />
+                <div className="mt-4 grid grid-cols-3 gap-2">
+                  <div className="h-10 rounded-2xl bg-[#eef6ff]" />
+                  <div className="h-10 rounded-2xl bg-[#edf4ff]" />
+                  <div className="h-10 rounded-2xl bg-[#e6f1ff]" />
                 </div>
+              </div>
+            ))}
+          </div>
 
-                {/* Trust line */}
-                <p className="mt-5 text-xs text-ink-light">
-                    ✓ 무료로 시작 &nbsp;·&nbsp; ✓ 신용카드 불필요 &nbsp;·&nbsp; ✓ 5분이면 등록 완료
-                </p>
-
-                {/* Stats */}
-                <div className="mt-16 grid grid-cols-3 gap-4">
-                    {[
-                        { value: stats ? fmt(stats.totalProjects) : "—", label: "등록된 서비스" },
-                        { value: stats ? fmt(stats.totalVotes) : "—", label: "누적 응원" },
-                        { value: stats ? fmt(stats.totalUsers) : "—", label: "함께하는 빌더" },
-                    ].map(({ value, label }) => (
-                        <div key={label} className="rounded-3xl bg-[#F9F7F3] border border-[#EBEBEB] p-6">
-                            <p className="text-3xl sm:text-4xl font-black text-ink">{value}</p>
-                            <p className="mt-1.5 text-sm font-semibold text-ink-light">{label}</p>
-                        </div>
-                    ))}
-                </div>
+          {FLOATING_WIDGETS.map(({ icon: Icon, label, className }) => (
+            <div
+              key={label}
+              className={`animate-float absolute rounded-[22px] border border-white/50 bg-white/92 px-4 py-3 text-slate-900 shadow-[0_18px_42px_-28px_rgba(23,68,129,0.4)] ${className}`}
+            >
+              <Icon className="mx-auto h-7 w-7 text-[#1d79d8]" />
+              <p className="mt-2 text-center text-[11px] font-black uppercase tracking-[0.18em] text-slate-500">
+                {label}
+              </p>
             </div>
-        </section>
-    );
+          ))}
+        </div>
+      </div>
+
+      <div className="relative mt-10 flex items-center justify-center gap-2">
+        {[0, 1, 2, 3, 4].map((dot) => (
+          <span
+            key={dot}
+            className={`block rounded-full ${dot === 0 ? "h-3 w-8 bg-[#1d79d8]" : "h-3 w-3 bg-white/65"}`}
+          />
+        ))}
+      </div>
+    </section>
+  );
 }
