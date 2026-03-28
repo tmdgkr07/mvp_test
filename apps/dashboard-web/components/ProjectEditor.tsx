@@ -1,7 +1,8 @@
-﻿"use client";
+"use client";
 
-import { useState } from "react";
+import { Eye, PencilLine } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
 import MarkdownRenderer from "@/components/MarkdownRenderer";
 import type { Project } from "@/lib/types";
 import { getDisplayStatusValue, PROJECT_STATUS_OPTIONS } from "@/lib/project-status";
@@ -62,25 +63,25 @@ export default function ProjectEditor({ project }: { project: Project }) {
 
 ---
 
-## 🚨 Pain Points (이런 점이 불편하지 않으셨나요?)
-${form.painPoints.trim() || "(내용 없음)"}
+## Problem
+${form.painPoints.trim() || "(empty)"}
 
 ---
 
-## 💡 ${form.solutionHeadline.trim() || "우리의 핵심 솔루션"}
-${form.features.trim() || "(내용 없음)"}
+## ${form.solutionHeadline.trim() || "Solution"}
+${form.features.trim() || "(empty)"}
 
 ---
 
-## ⚙️ How it Works (이렇게 작동합니다)
-${form.howItWorks.trim() || "(내용 없음)"}
+## How it works
+${form.howItWorks.trim() || "(empty)"}
 
 ---
 
-## 🔄 기존 방식 vs 우리 서비스
-${form.beforeAfter.trim() || "(내용 없음)"}
+## Before vs after
+${form.beforeAfter.trim() || "(empty)"}
 
-${form.socialProof.trim() ? `\n---\n\n## 💬 Social Proof (사용자 후기 및 기대 반응)\n${form.socialProof.trim()}` : ""}
+${form.socialProof.trim() ? `\n---\n\n## Signals\n${form.socialProof.trim()}` : ""}
       `.trim();
     }
 
@@ -123,187 +124,169 @@ ${form.socialProof.trim() ? `\n---\n\n## 💬 Social Proof (사용자 후기 및
   }
 
   return (
-    <form onSubmit={onSave} className="mt-3 rounded-2xl bg-paper p-6 shadow-card">
-      <h2 className="text-xl font-bold">프로젝트 수정</h2>
-      <p className="mt-1 text-sm text-ink/70">수정할 항목 이름을 확인하면서 편집하세요.</p>
+    <form onSubmit={onSave} className="panel-card px-6 py-7 sm:px-7">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <p className="section-eyebrow">Service Editor</p>
+          <h2 className="mt-3 text-2xl font-black text-slate-950 sm:text-3xl">프로젝트 수정</h2>
+          <p className="mt-3 text-sm leading-6 text-slate-500">
+            공개 페이지에 보이는 정보와 상세 문서를 더 촘촘한 편집 화면에서 관리할 수 있습니다.
+          </p>
+        </div>
 
-      <div className="mt-4 space-y-4">
-        <label className="block">
-          <span className="text-sm font-semibold text-ink">프로젝트명</span>
-          <input value={form.name} onChange={(e) => updateField("name", e.target.value)} className="mt-1.5 w-full rounded-xl border border-ink/20 bg-white px-3 py-2.5 text-sm" />
-        </label>
-
-        <label className="block">
-          <span className="text-sm font-semibold text-ink">한 줄 소개</span>
-          <input value={form.tagline} onChange={(e) => updateField("tagline", e.target.value)} className="mt-1.5 w-full rounded-xl border border-ink/20 bg-white px-3 py-2.5 text-sm" />
-        </label>
-
-        <label className="block">
-          <span className="text-sm font-semibold text-ink">현재 진행 상태</span>
-          <select
-            value={form.status}
-            onChange={(e) => updateField("status", e.target.value)}
-            className="mt-1.5 w-full rounded-xl border border-ink/20 bg-white px-3 py-2.5 text-sm"
+        <div className="flex gap-2 rounded-full border border-[#dce8f7] bg-[#f8fbff] p-1">
+          <button
+            type="button"
+            onClick={() => setTab("write")}
+            className={tab === "write" ? "brand-button px-4 py-2.5" : "brand-button-secondary px-4 py-2.5"}
           >
-            {PROJECT_STATUS_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </label>
+            <PencilLine className="mr-2 h-4 w-4" />
+            Edit
+          </button>
+          <button
+            type="button"
+            onClick={() => setTab("preview")}
+            className={tab === "preview" ? "brand-button px-4 py-2.5" : "brand-button-secondary px-4 py-2.5"}
+          >
+            <Eye className="mr-2 h-4 w-4" />
+            Preview
+          </button>
+        </div>
+      </div>
 
-        <div className="rounded-xl border border-ink/15 bg-white p-3">
-          <div className="flex items-center justify-between gap-2">
-            <span className="text-sm font-semibold text-ink">상세 페이지 본문 (Markdown 원본 편집기)</span>
-            <div className="flex gap-1">
-              <button type="button" onClick={() => setTab("write")} className={`rounded-md px-3 py-1 text-xs font-semibold ${tab === "write" ? "bg-ink text-white" : "bg-ink/10"}`}>
-                에디터
+      <div className="mt-6 grid gap-6">
+        <section className="rounded-[24px] border border-[#dce8f7] bg-[#f8fbff] p-5">
+          <h3 className="text-lg font-black text-slate-950">기본 정보</h3>
+          <div className="mt-4 grid gap-4 md:grid-cols-2">
+            <label className="block md:col-span-2">
+              <span className="field-label">프로젝트명</span>
+              <input value={form.name} onChange={(e) => updateField("name", e.target.value)} className="field-input" />
+            </label>
+            <label className="block md:col-span-2">
+              <span className="field-label">한 줄 소개</span>
+              <input value={form.tagline} onChange={(e) => updateField("tagline", e.target.value)} className="field-input" />
+            </label>
+            <label className="block">
+              <span className="field-label">현재 상태</span>
+              <select
+                value={form.status}
+                onChange={(e) => updateField("status", e.target.value)}
+                className="field-select"
+              >
+                {PROJECT_STATUS_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="block">
+              <span className="field-label">썸네일 URL</span>
+              <input value={form.thumbnailUrl} onChange={(e) => updateField("thumbnailUrl", e.target.value)} className="field-input" />
+            </label>
+            <label className="block">
+              <span className="field-label">프로젝트 URL</span>
+              <input value={form.websiteUrl} onChange={(e) => updateField("websiteUrl", e.target.value)} className="field-input" />
+            </label>
+            <label className="block">
+              <span className="field-label">후원 URL</span>
+              <input value={form.supportUrl} onChange={(e) => updateField("supportUrl", e.target.value)} className="field-input" />
+            </label>
+          </div>
+        </section>
+
+        <section className="rounded-[24px] border border-[#dce8f7] bg-white p-5">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h3 className="text-lg font-black text-slate-950">상세 페이지 본문</h3>
+              <p className="mt-2 text-sm leading-6 text-slate-500">마크다운 본문을 직접 수정하거나 템플릿으로 다시 구성할 수 있습니다.</p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button type="button" onClick={() => appendTemplate("## Section title\nWrite your content here.")} className="brand-button-secondary px-4 py-2.5">
+                제목 추가
               </button>
-              <button type="button" onClick={() => setTab("preview")} className={`rounded-md px-3 py-1 text-xs font-semibold ${tab === "preview" ? "bg-ink text-white" : "bg-ink/10"}`}>
-                미리보기
+              <button
+                type="button"
+                onClick={() => appendTemplate("![Image description](https://images.unsplash.com/photo-1517048676732-d65bc937f952?auto=format&fit=crop&w=1200&q=80)")}
+                className="brand-button-secondary px-4 py-2.5"
+              >
+                이미지 추가
+              </button>
+              <button type="button" onClick={() => appendTemplate("---")} className="brand-button-secondary px-4 py-2.5">
+                구분선 추가
               </button>
             </div>
-          </div>
-
-          <div className="mt-2 flex flex-wrap gap-2">
-            <button type="button" onClick={() => appendTemplate("## 섹션 제목\n내용을 입력하세요.")} className="rounded-md border border-ink/20 px-2 py-1 text-xs">제목 추가</button>
-            <button type="button" onClick={() => appendTemplate("![이미지 설명](https://images.unsplash.com/photo-1517048676732-d65bc937f952?auto=format&fit=crop&w=1200&q=80)")} className="rounded-md border border-ink/20 px-2 py-1 text-xs">이미지 추가</button>
-            <button type="button" onClick={() => appendTemplate("---")} className="rounded-md border border-ink/20 px-2 py-1 text-xs">구분선 추가</button>
           </div>
 
           {tab === "write" ? (
             <textarea
               value={form.detailContent}
               onChange={(e) => updateField("detailContent", e.target.value)}
-              className="mt-3 h-52 w-full rounded-xl border border-ink/20 bg-white px-3 py-2.5 text-sm"
-              placeholder="블로그처럼 문단/제목/이미지를 작성할 수 있습니다."
+              className="field-textarea mt-4 min-h-[240px]"
+              placeholder="상세 설명을 입력하세요."
             />
           ) : (
-            <div className="mt-3 min-h-52 rounded-xl border border-ink/10 bg-canvas/60 p-3">
-              {form.detailContent.trim() ? <MarkdownRenderer content={form.detailContent} /> : <p className="text-sm text-ink/60">미리볼 본문이 없습니다.</p>}
+            <div className="prose prose-slate mt-4 min-h-[240px] max-w-none rounded-[20px] border border-[#dce8f7] bg-[#f8fbff] p-5">
+              {form.detailContent.trim() ? (
+                <MarkdownRenderer content={form.detailContent} />
+              ) : (
+                <p className="text-sm text-slate-500">미리보기 본문이 없습니다.</p>
+              )}
             </div>
           )}
-        </div>
+        </section>
 
-        {/* 템플릿 입력 영역 (선택) */}
-        <div className="flex flex-col gap-4 rounded-2xl border border-ink/20 border-dashed bg-white p-5">
-          <div>
-            <h3 className="text-sm font-bold text-ink">템플릿으로 본문 덮어쓰기 (주의)</h3>
-            <p className="mt-1 text-xs text-ink/60">아래 템플릿을 작성하고 저장하면 기존 마크다운 원본이 초기화되고 템플릿 내용으로 덮어써집니다.</p>
-          </div>
+        <section className="rounded-[24px] border border-[#dce8f7] bg-[#f8fbff] p-5">
+          <h3 className="text-lg font-black text-slate-950">구조화 입력</h3>
+          <p className="mt-2 text-sm leading-6 text-slate-500">
+            아래 내용을 채우면 상세 본문을 다시 생성할 수 있습니다.
+          </p>
 
-          <div className="space-y-4">
+          <div className="mt-4 grid gap-4">
             <label className="block">
-              <span className="text-sm font-bold text-ink hover:text-support">1. Hook (헤드라인)</span>
-              <div className="mt-1.5 space-y-2">
-                <input
-                  value={form.hookHeadline}
-                  onChange={(event) => updateField("hookHeadline", event.target.value)}
-                  className="w-full rounded-xl border border-ink/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-support"
-                  placeholder="관심을 끌 메인 헤드라인"
-                />
-                <input
-                  value={form.hookSubtext}
-                  onChange={(event) => updateField("hookSubtext", event.target.value)}
-                  className="w-full rounded-xl border border-ink/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-support"
-                  placeholder="서브텍스트 설명"
-                />
+              <span className="field-label">헤드라인과 서브카피</span>
+              <div className="grid gap-3 md:grid-cols-2">
+                <input value={form.hookHeadline} onChange={(e) => updateField("hookHeadline", e.target.value)} className="field-input" />
+                <input value={form.hookSubtext} onChange={(e) => updateField("hookSubtext", e.target.value)} className="field-input" />
               </div>
             </label>
 
             <label className="block">
-              <span className="text-sm font-bold text-ink hover:text-support">2. Pain Points (문제점)</span>
-              <textarea
-                value={form.painPoints}
-                onChange={(event) => updateField("painPoints", event.target.value)}
-                className="mt-1.5 h-16 w-full rounded-xl border border-ink/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-support"
-              />
+              <span className="field-label">문제 정의</span>
+              <textarea value={form.painPoints} onChange={(e) => updateField("painPoints", e.target.value)} className="field-textarea" />
             </label>
 
             <label className="block">
-              <span className="text-sm font-bold text-ink hover:text-support">3. Solution (솔루션과 기능)</span>
-              <div className="mt-1.5 space-y-2">
-                <input
-                  value={form.solutionHeadline}
-                  onChange={(event) => updateField("solutionHeadline", event.target.value)}
-                  className="w-full rounded-xl border border-ink/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-support"
-                  placeholder="솔루션 핵심 헤드라인"
-                />
-                <textarea
-                  value={form.features}
-                  onChange={(event) => updateField("features", event.target.value)}
-                  className="h-20 w-full rounded-xl border border-ink/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-support"
-                  placeholder="주요 기능 설명"
-                />
+              <span className="field-label">해결 방식과 기능</span>
+              <div className="grid gap-3">
+                <input value={form.solutionHeadline} onChange={(e) => updateField("solutionHeadline", e.target.value)} className="field-input" />
+                <textarea value={form.features} onChange={(e) => updateField("features", e.target.value)} className="field-textarea" />
               </div>
             </label>
 
             <label className="block">
-              <span className="text-sm font-bold text-ink hover:text-support">4. How it Works (작동 방식)</span>
-              <textarea
-                value={form.howItWorks}
-                onChange={(event) => updateField("howItWorks", event.target.value)}
-                className="mt-1.5 h-20 w-full rounded-xl border border-ink/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-support"
-              />
+              <span className="field-label">작동 방식</span>
+              <textarea value={form.howItWorks} onChange={(e) => updateField("howItWorks", e.target.value)} className="field-textarea" />
             </label>
 
             <label className="block">
-              <span className="text-sm font-bold text-ink hover:text-support">5. Before & After</span>
-              <textarea
-                value={form.beforeAfter}
-                onChange={(event) => updateField("beforeAfter", event.target.value)}
-                className="mt-1.5 h-16 w-full rounded-xl border border-ink/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-support"
-              />
+              <span className="field-label">기존 방식 대비 차이</span>
+              <textarea value={form.beforeAfter} onChange={(e) => updateField("beforeAfter", e.target.value)} className="field-textarea" />
             </label>
 
             <label className="block">
-              <span className="text-sm font-bold text-ink hover:text-support">6. Social Proof (후기)</span>
-              <textarea
-                value={form.socialProof}
-                onChange={(event) => updateField("socialProof", event.target.value)}
-                className="mt-1.5 h-16 w-full rounded-xl border border-ink/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-support"
-              />
+              <span className="field-label">반응 또는 증거</span>
+              <textarea value={form.socialProof} onChange={(e) => updateField("socialProof", e.target.value)} className="field-textarea" />
             </label>
           </div>
-        </div>
-
-        <label className="block mt-6">
-          <span className="text-sm font-semibold text-ink">프로젝트 URL</span>
-          <input type="text" value={form.websiteUrl} onChange={(e) => updateField("websiteUrl", e.target.value)} className="mt-1.5 w-full rounded-xl border border-ink/20 bg-white px-3 py-2.5 text-sm" />
-        </label>
-
-        <label className="block">
-          <span className="text-sm font-semibold text-ink">후원 URL</span>
-          <input type="text" value={form.supportUrl} onChange={(e) => updateField("supportUrl", e.target.value)} className="mt-1.5 w-full rounded-xl border border-ink/20 bg-white px-3 py-2.5 text-sm" />
-        </label>
-
-        <label className="block">
-          <span className="text-sm font-semibold text-ink">썸네일 URL</span>
-          <input type="text" value={form.thumbnailUrl} onChange={(e) => updateField("thumbnailUrl", e.target.value)} className="mt-1.5 w-full rounded-xl border border-ink/20 bg-white px-3 py-2.5 text-sm" />
-          <details className="mt-2 text-xs text-ink/70">
-            <summary className="cursor-pointer font-bold hover:text-ink">URL 제작 요령 (클릭하여 열기)</summary>
-            <div className="mt-2 space-y-1 pl-2">
-              <p>썸네일 URL에는 반드시 <strong>`.png`, `.jpg`, `.jpeg` 등 확장자로 끝나는 순수 이미지 직접 주소(Direct Link)</strong>만 들어가야 합니다. 앨범이나 웹페이지 주소는 안 됩니다!</p>
-              <div className="mt-1">
-                <span className="font-semibold text-ink">🛠️ 무료로 만드는 방법:</span>
-                <ul className="list-inside list-disc">
-                  <li><a href="https://imgur.com/" target="_blank" rel="noopener noreferrer" className="text-support underline">Imgur</a> 혹은 원하시는 이미지 호스팅 사이트에 이미지를 업로드하세요.</li>
-                  <li>업로드된 이미지 위에서 <strong>오른쪽 마우스 클릭</strong>을 하세요.</li>
-                  <li><strong>'이미지 주소 복사(Copy image address)'</strong>를 누른 후 여기에 붙여넣으세요.</li>
-                  <li className="text-red-500">주의: 구글 드라이브나 노션 링크는 보안 문제로 썸네일로 보이지 않습니다!</li>
-                </ul>
-              </div>
-            </div>
-          </details>
-        </label>
+        </section>
       </div>
 
-      {message && <p className="mt-3 text-sm text-support">{message}</p>}
-      {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
+      {message ? <p className="mt-5 rounded-[18px] bg-[#e9f9ef] px-4 py-3 text-sm text-[#15803d]">{message}</p> : null}
+      {error ? <p className="mt-5 rounded-[18px] bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p> : null}
 
-      <div className="mt-4 flex gap-2">
-        <button disabled={saving} className="rounded-xl bg-ink px-5 py-2 text-sm font-semibold text-white disabled:opacity-70">
+      <div className="mt-5 flex justify-end">
+        <button disabled={saving} className="brand-button px-6 py-3 disabled:opacity-70">
           {saving ? "저장 중..." : "수정 저장"}
         </button>
       </div>

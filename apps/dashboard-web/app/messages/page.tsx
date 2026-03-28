@@ -8,7 +8,7 @@ import { getProjectById } from "@/lib/data-store";
 import { canManageProject } from "@/lib/permissions";
 
 export const metadata: Metadata = {
-  title: "제작자 피드백 | 밥주세요",
+  title: "제작자 피드백 | feedback4U",
   description: "후원과 함께 도착한 제작자 전용 피드백 메시지를 읽지 않음과 읽음으로 나눠 확인합니다."
 };
 

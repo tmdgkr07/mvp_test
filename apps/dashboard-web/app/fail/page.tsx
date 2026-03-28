@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "결제 실패 | 밥주세요",
+  title: "결제 실패 | feedback4U",
   description: "후원 결제 실패 또는 취소 결과를 보여줍니다."
 };
 
