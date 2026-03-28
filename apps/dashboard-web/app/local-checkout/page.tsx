@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import LocalCheckoutClient from "@/components/LocalCheckoutClient";
 
 export const metadata: Metadata = {
-  title: "로컬 체크아웃 | feedback4U",
+  title: "로컬 체크아웃 | 밥주세요",
   description: "로컬 테스트용 결제 시뮬레이터입니다."
 };
 

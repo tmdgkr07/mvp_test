@@ -20,7 +20,7 @@ export const FUNNEL_STAGE_META: Record<FunnelStage, FunnelStageMeta> = {
     key: "main_exposure",
     label: "내 프로젝트 노출",
     shortLabel: "프로젝트 노출",
-    description: "feedback4U 홈 또는 탐색 화면에서 서비스 카드가 사용자 화면에 표시된 횟수입니다.",
+    description: "밥주세요 홈 또는 탐색 화면에서 서비스 카드가 사용자 화면에 표시된 횟수입니다.",
     helper: "퍼널의 시작점으로, 우리 플랫폼 안에서 서비스가 얼마나 노출됐는지 보여줍니다."
   },
   website_click: {

@@ -2,9 +2,8 @@
 
 import type { Route } from "next";
 import { Suspense, useState } from "react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { UserPlus2 } from "lucide-react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { buildLoginHref, buildPathWithSearch } from "@/lib/auth-routing";
 
 export default function FollowButton({
@@ -19,9 +18,13 @@ export default function FollowButton({
   return (
     <Suspense
       fallback={
-        <button type="button" disabled className="brand-button gap-2 px-5 py-2.5 opacity-60">
-          <UserPlus2 className="h-4 w-4" />
-          Loading
+        <button
+          type="button"
+          disabled
+          className="inline-flex items-center gap-2 rounded-full border border-blue-700/50 bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-3 text-sm font-bold text-white opacity-50 shadow-md"
+        >
+          <span className="text-lg">+</span>
+          <span>Loading</span>
         </button>
       }
     >
@@ -53,7 +56,12 @@ function FollowButtonContent({
   const currentPath = buildPathWithSearch(pathname || "/", searchParams);
 
   if (session?.user?.id === targetUserId) {
-    return <div className="brand-button-secondary gap-2 px-5 py-2.5">My profile followers {count}</div>;
+    return (
+      <div className="inline-flex items-center gap-2 rounded-full border border-slate-300/50 bg-gradient-to-r from-slate-500/10 to-slate-500/5 px-6 py-3 text-sm font-bold text-slate-700">
+        <span className="text-lg">내</span>
+        내 프로필 (팔로워 {count}명)
+      </div>
+    );
   }
 
   async function handleFollow() {
@@ -65,18 +73,18 @@ function FollowButtonContent({
     setLoading(true);
     const wasFollowing = isFollowing;
     setIsFollowing(!isFollowing);
-    setCount((current) => (wasFollowing ? current - 1 : current + 1));
+    setCount((prev) => (wasFollowing ? prev - 1 : prev + 1));
 
     try {
-      const response = await fetch(`/api/maker/${targetUserId}/follow`, { method: "POST" });
-      if (!response.ok) {
+      const res = await fetch(`/api/maker/${targetUserId}/follow`, { method: "POST" });
+      if (!res.ok) {
         throw new Error("Failed to follow");
       }
       router.refresh();
     } catch {
       setIsFollowing(wasFollowing);
-      setCount((current) => (wasFollowing ? current + 1 : current - 1));
-      alert("요청 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
+      setCount((prev) => (wasFollowing ? prev + 1 : prev - 1));
+      alert("서버 오류가 발생했습니다. 다시 시도해 주세요.");
     } finally {
       setLoading(false);
     }
@@ -86,10 +94,16 @@ function FollowButtonContent({
     <button
       onClick={() => void handleFollow()}
       disabled={loading}
-      className={isFollowing ? "brand-button-secondary gap-2 px-5 py-2.5" : "brand-button gap-2 px-5 py-2.5"}
+      className={`group inline-flex items-center gap-2 rounded-full border px-6 py-3 text-sm font-bold shadow-md transition-all duration-300 hover:shadow-lg disabled:opacity-50 ${
+        isFollowing
+          ? "border-slate-700/50 bg-gradient-to-r from-slate-500 to-slate-600 text-white hover:from-slate-600 hover:to-slate-700"
+          : "border-blue-700/50 bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:-translate-y-0.5 hover:from-blue-700 hover:to-indigo-700"
+      }`}
     >
-      <UserPlus2 className="h-4 w-4" />
-      <span>{isFollowing ? "언팔로우" : "팔로우"}</span>
+      <span className={`text-lg transition-transform ${isFollowing ? "group-hover:scale-110" : "group-hover:scale-125"}`}>
+        {isFollowing ? "✓" : "+"}
+      </span>
+      <span>{isFollowing ? "팔로우 취소" : "팔로우"}</span>
       <span className="text-xs font-semibold opacity-80">({count})</span>
     </button>
   );

@@ -114,7 +114,7 @@ export default function MyPageHub({
                 className="group inline-flex items-center gap-2 rounded-full border border-[#EEE5BC] bg-[#FFFDF2] px-4 py-2 text-sm font-black text-gray-900 transition-all hover:-translate-y-0.5 hover:border-[#E5D27A]"
               >
                 <span className="text-xl transition-transform duration-300 group-hover:rotate-12">🍚</span>
-                <span>feedback4U 홈</span>
+                <span>밥주세요 홈</span>
               </Link>
 
               {showAdminLink ? (

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import PaymentSuccessClient from "@/components/PaymentSuccessClient";
 
 export const metadata: Metadata = {
-  title: "후원 완료 | feedback4U",
+  title: "후원 완료 | 밥주세요",
   description: "후원 결제 확인 결과를 보여줍니다."
 };
 

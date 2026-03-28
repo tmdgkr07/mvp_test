@@ -1,26 +1,14 @@
-"use client";
+﻿"use client";
 
-import confetti from "canvas-confetti";
-import { AnimatePresence, motion } from "framer-motion";
-import {
-  ArrowUpRight,
-  HeartHandshake,
-  MessageSquareText,
-  RotateCcw,
-  Search,
-  Sparkles
-} from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { useSession } from "next-auth/react";
 import { useDeferredValue, useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
-import {
-  getProjectStatusMeta,
-  matchesDisplayStatusFilter,
-  PROJECT_STATUS_OPTIONS,
-  type ProjectStatusTone
-} from "@/lib/project-status";
 import type { FunnelStage, Project } from "@/lib/types";
+import { motion, AnimatePresence } from "framer-motion";
+import confetti from "canvas-confetti";
+import { RotateCcw, Search, MessageSquare, ExternalLink } from "lucide-react";
+import { useSession } from "next-auth/react";
+import { getProjectStatusMeta, matchesDisplayStatusFilter, PROJECT_STATUS_OPTIONS, type ProjectStatusTone } from "@/lib/project-status";
 
 type SupportTierKey = "starter" | "supporter" | "angel";
 
@@ -29,25 +17,25 @@ type ApiResult<T> = {
   error?: { code: string; message: string };
 };
 
+const STATUS_TONE_STYLES: Record<ProjectStatusTone, string> = {
+  idea: "bg-gray-100 text-gray-700 border-gray-200",
+  developing: "bg-orange-50 text-orange-700 border-orange-200",
+  released: "bg-emerald-50 text-emerald-700 border-emerald-200",
+  paused: "bg-red-50 text-red-700 border-red-200",
+  pivoted: "bg-yellow-50 text-yellow-800 border-yellow-200"
+};
+
+const SUPPORT_TIERS: Array<{ key: SupportTierKey; label: string; amount: number }> = [
+  { key: "starter", label: "5 밥알", amount: 5000 },
+  { key: "supporter", label: "10 밥알", amount: 10000 },
+  { key: "angel", label: "30 밥알", amount: 30000 }
+];
+
 type PendingFeedback = {
   projectId: string;
   projectName: string;
   tierLabel: string;
 };
-
-const STATUS_TONE_STYLES: Record<ProjectStatusTone, string> = {
-  idea: "border-slate-200 bg-slate-100 text-slate-700",
-  developing: "border-orange-200 bg-orange-50 text-orange-700",
-  released: "border-emerald-200 bg-emerald-50 text-emerald-700",
-  paused: "border-rose-200 bg-rose-50 text-rose-700",
-  pivoted: "border-amber-200 bg-amber-50 text-amber-700"
-};
-
-const SUPPORT_TIERS: Array<{ key: SupportTierKey; label: string; amount: number }> = [
-  { key: "starter", label: "5,000원", amount: 5000 },
-  { key: "supporter", label: "10,000원", amount: 10000 },
-  { key: "angel", label: "30,000원", amount: 30000 }
-];
 
 function ensureSessionId(): string {
   const key = "mvp_showcase_session_id";
@@ -107,7 +95,7 @@ export default function ShowcaseBoard({ initialProjects }: { initialProjects: Pr
         })
       });
     } catch {
-      // ignore analytics failures
+      // ignore analytics failure
     }
   }
 
@@ -221,10 +209,10 @@ export default function ShowcaseBoard({ initialProjects }: { initialProjects: Pr
     const y = (rect.top + rect.height / 2) / window.innerHeight;
 
     confetti({
-      particleCount: 36,
-      spread: 62,
+      particleCount: 40,
+      spread: 70,
       origin: { x, y },
-      colors: ["#1d79d8", "#7fb5ff", "#dceeff"]
+      colors: ["#FFB84D", "#FFE066", "#FFF3BF"]
     });
 
     setVotingProjectIds((current) => [...current, projectId]);
@@ -283,10 +271,8 @@ export default function ShowcaseBoard({ initialProjects }: { initialProjects: Pr
         : null,
     [projects, session?.user?.id]
   );
-
   const normalizedSearchQuery = deferredSearchQuery.trim().toLowerCase();
   const hasActiveFilters = activeFilter !== "ALL" || sortOrder !== "LATEST" || normalizedSearchQuery.length > 0;
-
   const visibleProjects = useMemo(() => {
     const filteredProjects = projects.filter((project) => {
       const matchesFilter = matchesDisplayStatusFilter(project.status, activeFilter);
@@ -316,302 +302,282 @@ export default function ShowcaseBoard({ initialProjects }: { initialProjects: Pr
 
   return (
     <>
-      {featuredProject ? (
-        <section className="panel-card overflow-hidden bg-[linear-gradient(135deg,#eff6ff_0%,#ffffff_56%,#dfefff_100%)] px-5 py-5 sm:px-6">
-          <div className="grid gap-5 lg:grid-cols-[1.08fr_0.92fr] lg:items-center">
-            <div>
-              <div className="inline-flex items-center gap-2 rounded-full border border-[#bfd8f8] bg-white px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.18em] text-[#1d79d8]">
-                <Sparkles className="h-3.5 w-3.5" />
-                {featuredProject.ownerId === session?.user?.id ? "My Featured Project" : "Most Loved This Week"}
+      {/* Project of the Week Banner */}
+      {featuredProject && (
+        <div className="mt-8 overflow-hidden rounded-3xl bg-[#FFF9C4] border border-[#FFE066] shadow-card">
+          <div className="flex flex-col md:flex-row items-center gap-6 p-8 sm:p-10">
+            <div className="flex-1 space-y-4">
+              <div className="flex items-center gap-2">
+                <span className="text-xl">🏆</span>
+                <span className="text-xs font-black tracking-widest text-[#8B6914] uppercase">
+                  {featuredProject.ownerId === session?.user?.id ? "My Featured Project" : "Project of the Week"}
+                </span>
               </div>
-              <h2 className="mt-4 text-2xl font-black leading-tight text-slate-950 sm:text-3xl">
-                {featuredProject.name}
-              </h2>
-              <p className="mt-3 text-sm leading-6 text-slate-500">
-                {featuredProject.tagline}
-              </p>
-
-              <div className="mt-5 flex flex-wrap gap-3">
-                <Link href={`/project/${featuredProject.id}`} className="brand-button">
-                  서비스 자세히 보기
-                </Link>
-                <a
-                  href={featuredProject.websiteUrl}
-                  target="_blank"
-                  rel="noreferrer noopener"
-                  onClick={() => {
-                    markStage(featuredProject.id, "website_click");
-                    void logEvent({
-                      type: "website_click",
-                      projectId: featuredProject.id,
-                      metadata: { from: "featured_banner" }
-                    });
-                  }}
-                  className="brand-button-secondary"
-                >
-                  서비스 방문하기
-                </a>
+              <div>
+                <h2 className="text-3xl md:text-4xl font-black text-ink">
+                  {featuredProject.name}
+                </h2>
+                <p className="mt-2 text-base font-medium leading-relaxed text-ink-light">
+                  {featuredProject.tagline}
+                </p>
               </div>
+              <Link
+                href={`/project/${featuredProject.id}`}
+                className="inline-flex items-center gap-2 rounded-full bg-ink hover:bg-ink/90 px-6 py-3 text-sm font-bold text-white transition-all hover:-translate-y-0.5 shadow-btn"
+              >
+                {featuredProject.ownerId === session?.user?.id ? "내 프로젝트 보러가기" : "이번 주 1위 보러가기"}
+                <ExternalLink className="h-4 w-4" />
+              </Link>
             </div>
-
-            <div className="relative h-56 overflow-hidden rounded-[24px] border border-[#dce8f7] bg-white shadow-[0_20px_44px_-30px_rgba(23,68,129,0.34)]">
+            <div className="relative h-48 w-full md:w-80 overflow-hidden rounded-2xl shadow-card border border-[#FFE066]/50">
               <Image
                 src={featuredProject.thumbnailUrl}
-                alt={`${featuredProject.name} thumbnail`}
+                alt={`${featuredProject.name} Thumbnail`}
                 fill
                 className="object-cover"
-                sizes="(max-width: 1024px) 100vw, 40vw"
               />
             </div>
           </div>
-        </section>
-      ) : null}
+        </div>
+      )}
 
-      <section className="panel-card mt-6 px-5 py-5 sm:px-6">
-        <div className="grid gap-4">
-          <div className="relative">
-            <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-            <input
-              type="text"
-              placeholder="프로젝트명, 태그, 키워드로 검색"
-              value={searchQuery}
-              onChange={(event) => setSearchQuery(event.target.value)}
-              className="field-input pl-11"
-            />
+      <section className="mt-8">
+        {projects.length === 0 && (
+          <div className="rounded-3xl border-2 border-dashed border-[#EBEBEB] bg-white px-6 py-16 text-center">
+            <p className="text-lg font-black text-ink">등록된 MVP가 아직 없습니다.</p>
+            <p className="mt-2 text-sm text-ink-light">첫 번째 빌더로 프로젝트를 등록해보세요.</p>
           </div>
+        )}
 
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={() => setActiveFilter("ALL")}
-                className={activeFilter === "ALL" ? "brand-button px-4 py-2.5" : "brand-button-secondary px-4 py-2.5"}
-              >
-                전체
-              </button>
-              {PROJECT_STATUS_OPTIONS.map(({ value, label }) => (
-                <button
-                  key={value}
-                  type="button"
-                  onClick={() => setActiveFilter(value)}
-                  className={activeFilter === value ? "brand-button px-4 py-2.5" : "brand-button-secondary px-4 py-2.5"}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-
-            <div className="flex flex-wrap items-center gap-3">
-              <div className="flex rounded-full border border-[#dce8f7] bg-[#f8fbff] p-1">
-                <button
-                  type="button"
-                  onClick={() => setSortOrder("LATEST")}
-                  className={sortOrder === "LATEST" ? "brand-button px-4 py-2.5" : "brand-button-secondary px-4 py-2.5"}
-                >
-                  최신순
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setSortOrder("POPULAR")}
-                  className={sortOrder === "POPULAR" ? "brand-button px-4 py-2.5" : "brand-button-secondary px-4 py-2.5"}
-                >
-                  인기순
-                </button>
+        {projects.length > 0 && (
+          <>
+            <div className="mb-10 flex flex-col gap-6">
+              <div className="relative">
+                <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-light" />
+                <input
+                  type="text"
+                  placeholder="프로젝트 명, 태그, 키워드로 검색..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full rounded-full border border-[#EBEBEB] bg-white py-3.5 pl-11 pr-5 text-sm font-medium shadow-card transition-all focus:border-ink/30 focus:outline-none placeholder:text-ink-light/60"
+                />
               </div>
 
-              {hasActiveFilters ? (
-                <button type="button" onClick={resetFilters} className="brand-button-secondary gap-2 px-4 py-2.5">
-                  <RotateCcw className="h-4 w-4" />
-                  초기화
-                </button>
-              ) : null}
-            </div>
-          </div>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex flex-wrap items-center gap-2 overflow-x-auto pb-1">
+                  <button
+                    onClick={() => setActiveFilter("ALL")}
+                    className={`rounded-full px-4 py-2 text-sm font-bold transition-all whitespace-nowrap ${activeFilter === "ALL" ? "bg-ink text-white" : "bg-white border border-[#EBEBEB] text-ink-light hover:border-ink/20 hover:text-ink"}`}
+                  >
+                    전체
+                  </button>
+                  {PROJECT_STATUS_OPTIONS.map(({ value, label }) => (
+                    <button
+                      key={value}
+                      onClick={() => setActiveFilter(value)}
+                      className={`rounded-full px-4 py-2 text-sm font-bold transition-all whitespace-nowrap ${activeFilter === value ? "bg-ink text-white" : "bg-white border border-[#EBEBEB] text-ink-light hover:border-ink/20 hover:text-ink"}`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
 
-          <div className="soft-card flex flex-col gap-2 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <p className="text-lg font-black text-slate-950">
-                {visibleProjects.length}개 표시 중 <span className="text-slate-400">/ 전체 {projects.length}개</span>
-              </p>
-              <p className="mt-2 text-sm leading-7 text-slate-500">
-                검색어와 상태를 조합해 지금 살펴보고 싶은 서비스만 빠르게 좁힐 수 있습니다.
-              </p>
+                <div className="flex items-center gap-1 rounded-full bg-[#F9F7F3] border border-[#EBEBEB] p-1 self-start sm:self-auto">
+                  <button
+                    onClick={() => setSortOrder("LATEST")}
+                    className={`rounded-full px-4 py-2 text-sm font-bold transition-all whitespace-nowrap ${sortOrder === "LATEST" ? "bg-white text-ink shadow-card" : "text-ink-light hover:text-ink"}`}
+                  >
+                    최신순
+                  </button>
+                  <button
+                    onClick={() => setSortOrder("POPULAR")}
+                    className={`rounded-full px-4 py-2 text-sm font-bold transition-all whitespace-nowrap ${sortOrder === "POPULAR" ? "bg-white text-ink shadow-card" : "text-ink-light hover:text-ink"}`}
+                  >
+                    🔥 인기순
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-3 rounded-3xl border border-[#EBEBEB] bg-[#FFFCF3] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-sm font-black text-ink">
+                    {visibleProjects.length}개 표시 중
+                    <span className="ml-1 text-ink-light">전체 {projects.length}개 서비스</span>
+                  </p>
+                  <p className="mt-1 text-xs text-ink-light">
+                    상태, 검색어, 정렬 기준을 조합해 지금 보고 싶은 서비스만 빠르게 좁힐 수 있습니다.
+                  </p>
+                </div>
+                {hasActiveFilters ? (
+                  <button
+                    type="button"
+                    onClick={resetFilters}
+                    className="inline-flex items-center gap-2 rounded-full border border-[#EBEBEB] bg-white px-4 py-2 text-xs font-bold text-ink transition-colors hover:bg-ink/5"
+                  >
+                    <RotateCcw className="h-3.5 w-3.5" />
+                    필터 초기화
+                  </button>
+                ) : null}
+              </div>
             </div>
-          </div>
-        </div>
+
+            {visibleProjects.length === 0 ? (
+              <div className="rounded-3xl border border-dashed border-[#E5D27A] bg-white px-6 py-16 text-center">
+                <p className="text-lg font-black text-ink">조건에 맞는 서비스가 없습니다.</p>
+                <p className="mt-2 text-sm text-ink-light">검색어를 줄이거나 상태 필터를 초기화해서 다시 찾아보세요.</p>
+                {hasActiveFilters ? (
+                  <button
+                    type="button"
+                    onClick={resetFilters}
+                    className="mt-5 inline-flex items-center gap-2 rounded-full bg-accent px-5 py-2.5 text-sm font-bold text-ink transition-colors hover:bg-accent-dark"
+                  >
+                    <RotateCcw className="h-4 w-4" />
+                    전체 서비스 다시 보기
+                  </button>
+                ) : null}
+              </div>
+            ) : (
+              <motion.div layout className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
+                <AnimatePresence mode="popLayout">
+                  {visibleProjects.map((project, index) => (
+                    <motion.article
+                      key={project.id}
+                      layout
+                      initial={{ opacity: 0, y: 12 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: 12 }}
+                      transition={{ duration: 0.2 }}
+                      className="group h-full overflow-hidden rounded-3xl border border-[#EBEBEB] bg-white shadow-card hover:shadow-card-hover transition-all duration-300 hover:-translate-y-1.5"
+                    >
+                      <div className="relative h-52 w-full overflow-hidden bg-[#F9F7F3]">
+                        <span className="absolute left-4 top-4 z-20 flex h-8 w-8 items-center justify-center rounded-full bg-white text-sm font-black text-ink shadow-btn border border-[#EBEBEB]">
+                          {index + 1}
+                        </span>
+                        <Image
+                          src={project.thumbnailUrl}
+                          alt={`${project.name} 썸네일`}
+                          fill
+                          className="object-cover transition-transform duration-500 group-hover:scale-105"
+                          sizes="(max-width: 768px) 100vw, 33vw"
+                        />
+                        <motion.button
+                          type="button"
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.94 }}
+                          onClick={(event) => void handleVoteClick(event, project.id)}
+                          disabled={votingProjectIds.includes(project.id)}
+                          className="absolute right-4 top-4 z-10 flex items-center gap-2 rounded-full border border-[#FFD27A] bg-white/95 px-3.5 py-2 text-xs font-black text-[#8B6914] shadow-btn backdrop-blur transition-all hover:-translate-y-0.5 hover:border-[#FFC44D] hover:bg-[#FFF8E1] disabled:cursor-not-allowed disabled:opacity-70"
+                          aria-label={`${project.name} 인기 올리기, 현재 ${project.voteCount || 0}`}
+                          title="클릭해서 인기 올리기"
+                        >
+                          <span aria-hidden="true">🔥</span>
+                          <span>인기 {project.voteCount || 0}</span>
+                        </motion.button>
+                      </div>
+
+                      <div className="p-5 space-y-4">
+                        <div>
+                          <div className="mb-3 flex items-center justify-between gap-2">
+                            {project.status ? (
+                              <span className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-bold ${STATUS_TONE_STYLES[getProjectStatusMeta(project.status).tone]}`}>
+                                {getProjectStatusMeta(project.status).label}
+                              </span>
+                            ) : null}
+                            <span className="flex items-center gap-1 text-xs font-semibold text-ink-light">
+                              <MessageSquare className="h-3.5 w-3.5" />
+                              {project.commentCount || 0}
+                            </span>
+                          </div>
+                          <h2 className="text-lg font-black text-ink group-hover:text-[#8B6914] transition-colors line-clamp-1">
+                            {project.name}
+                          </h2>
+                          <p className="mt-1 text-sm leading-relaxed text-ink-light line-clamp-2">
+                            {project.tagline}
+                          </p>
+                        </div>
+
+                        <div className="flex items-center gap-3">
+                          <a
+                            href={project.websiteUrl}
+                            target="_blank"
+                            rel="noreferrer noopener"
+                            onClick={() => {
+                              markStage(project.id, "website_click");
+                              void logEvent({ type: "website_click", projectId: project.id, metadata: { from: "main_card" } });
+                            }}
+                            className="flex flex-1 items-center justify-center gap-2 rounded-full bg-ink px-4 py-4 text-base font-black text-white transition-all hover:-translate-y-0.5 hover:bg-ink/90"
+                          >
+                            방문하기
+                            <ExternalLink className="h-3.5 w-3.5" />
+                          </a>
+                          <Link
+                            href={`/project/${project.id}`}
+                            className="flex h-[62px] min-w-[132px] shrink-0 items-center justify-center rounded-full border border-[#E3E3E3] bg-white px-5 text-sm font-bold text-[#666666] transition-all hover:-translate-y-0.5 hover:border-[#CFCFCF] hover:text-ink"
+                          >
+                            자세히 보기
+                          </Link>
+                        </div>
+
+                        <div className="pt-4 border-t border-[#EBEBEB]">
+                          <p className="text-xs font-bold text-ink-light mb-2.5">🍚 밥알로 응원하기</p>
+                          <div className="grid grid-cols-3 gap-1.5">
+                            {SUPPORT_TIERS.map((tier) => (
+                              <button
+                                key={tier.key}
+                                type="button"
+                                onClick={() => handleSupportClick(project, tier)}
+                                className="rounded-full bg-[#FFF9C4] border border-[#FFE066] hover:bg-accent hover:border-accent px-2 py-2 text-xs font-bold text-[#8B6914] hover:text-ink transition-all hover:-translate-y-0.5"
+                              >
+                                {tier.label}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </motion.article>
+                  ))}
+                </AnimatePresence>
+              </motion.div>
+            )}
+          </>
+        )}
       </section>
 
-      {projects.length === 0 ? (
-        <div className="panel-card mt-6 px-6 py-12 text-center">
-          <p className="text-2xl font-black text-slate-950">등록된 서비스가 아직 없습니다.</p>
-          <p className="mt-3 text-sm leading-7 text-slate-500">첫 번째 빌더로 프로젝트를 등록해보세요.</p>
-        </div>
-      ) : null}
-
-      {projects.length > 0 && visibleProjects.length === 0 ? (
-        <div className="panel-card mt-6 px-6 py-12 text-center">
-          <p className="text-2xl font-black text-slate-950">조건에 맞는 서비스가 없습니다.</p>
-          <p className="mt-3 text-sm leading-7 text-slate-500">검색어를 줄이거나 필터를 초기화해 다시 찾아보세요.</p>
-          {hasActiveFilters ? (
-            <button type="button" onClick={resetFilters} className="brand-button mt-6 gap-2">
-              <RotateCcw className="h-4 w-4" />
-              전체 서비스 다시 보기
-            </button>
-          ) : null}
-        </div>
-      ) : null}
-
-      {visibleProjects.length > 0 ? (
-        <motion.div layout className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-          <AnimatePresence mode="popLayout">
-            {visibleProjects.map((project, index) => (
-              <motion.article
-                key={project.id}
-                layout
-                initial={{ opacity: 0, y: 16 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 16 }}
-                transition={{ duration: 0.2 }}
-                className="group overflow-hidden rounded-[26px] border border-[#dce8f7] bg-white shadow-[0_20px_44px_-32px_rgba(23,68,129,0.32)] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_22px_48px_-28px_rgba(23,68,129,0.36)]"
-              >
-                <div className="relative h-48 overflow-hidden bg-[#edf5ff]">
-                  <span className="absolute left-3 top-3 z-20 flex h-8 w-8 items-center justify-center rounded-full bg-white text-xs font-black text-slate-950 shadow-[0_14px_28px_-24px_rgba(23,68,129,0.34)]">
-                    {index + 1}
-                  </span>
-                  <Image
-                    src={project.thumbnailUrl}
-                    alt={`${project.name} thumbnail`}
-                    fill
-                    className="object-cover transition-transform duration-500 group-hover:scale-105"
-                    sizes="(max-width: 768px) 100vw, (max-width: 1280px) 50vw, 33vw"
-                  />
-                  <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-slate-950/45 to-transparent" />
-                  <motion.button
-                    type="button"
-                    whileHover={{ scale: 1.03 }}
-                    whileTap={{ scale: 0.97 }}
-                    onClick={(event) => void handleVoteClick(event, project.id)}
-                    disabled={votingProjectIds.includes(project.id)}
-                    className="absolute right-3 top-3 z-20 inline-flex items-center gap-2 rounded-full border border-[#bfd8f8] bg-white/92 px-3 py-1.5 text-xs font-black text-[#1d79d8] shadow-[0_14px_28px_-24px_rgba(23,68,129,0.34)] backdrop-blur-sm transition-all hover:-translate-y-0.5 hover:border-[#1d79d8] disabled:opacity-70"
-                    aria-label={`${project.name} 투표, 현재 ${project.voteCount || 0}`}
-                  >
-                    👍 {project.voteCount || 0}
-                  </motion.button>
-                </div>
-
-                <div className="space-y-4 px-4 py-4">
-                  <div>
-                    <div className="mb-2.5 flex items-center justify-between gap-3">
-                      {project.status ? (
-                        <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-black ${STATUS_TONE_STYLES[getProjectStatusMeta(project.status).tone]}`}>
-                          {getProjectStatusMeta(project.status).label}
-                        </span>
-                      ) : null}
-                      <span className="inline-flex items-center gap-1 text-xs font-semibold text-slate-500">
-                        <MessageSquareText className="h-3.5 w-3.5" />
-                        {project.commentCount || 0}
-                      </span>
-                    </div>
-
-                    <h2 className="text-xl font-black text-slate-950">{project.name}</h2>
-                    <p className="mt-2 text-sm leading-6 text-slate-500">{project.tagline}</p>
-                  </div>
-
-                  {project.tags && project.tags.length > 0 ? (
-                    <div className="flex flex-wrap gap-2">
-                      {project.tags.slice(0, 4).map((tag) => (
-                        <span
-                          key={`${project.id}-${tag}`}
-                          className="rounded-full border border-[#dce8f7] bg-[#f8fbff] px-3 py-1 text-xs font-semibold text-slate-500"
-                        >
-                          #{tag}
-                        </span>
-                      ))}
-                    </div>
-                  ) : null}
-
-                  <div className="grid gap-2.5 sm:grid-cols-2">
-                    <a
-                      href={project.websiteUrl}
-                      target="_blank"
-                      rel="noreferrer noopener"
-                      onClick={() => {
-                        markStage(project.id, "website_click");
-                        void logEvent({ type: "website_click", projectId: project.id, metadata: { from: "main_card" } });
-                      }}
-                      className="brand-button gap-2"
-                    >
-                      서비스 보기
-                      <ArrowUpRight className="h-4 w-4" />
-                    </a>
-
-                    <Link href={`/project/${project.id}`} className="brand-button-secondary gap-2">
-                      상세 보기
-                      <ArrowUpRight className="h-4 w-4" />
-                    </Link>
-                  </div>
-
-                  <div className="rounded-[20px] border border-[#dce8f7] bg-[#f8fbff] px-3.5 py-3.5">
-                    <div className="mb-2.5 flex items-center gap-2">
-                      <HeartHandshake className="h-4 w-4 text-[#1d79d8]" />
-                      <p className="text-sm font-black text-slate-950">후원으로 응원하기</p>
-                    </div>
-                    <div className="grid grid-cols-3 gap-1.5">
-                      {SUPPORT_TIERS.map((tier) => (
-                        <button
-                          key={tier.key}
-                          type="button"
-                          onClick={() => handleSupportClick(project, tier)}
-                          className="rounded-full border border-[#bfd8f8] bg-white px-2 py-1.5 text-[11px] font-bold text-[#1d79d8] transition-all hover:-translate-y-0.5 hover:border-[#1d79d8] hover:bg-[#edf5ff]"
-                        >
-                          {tier.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </motion.article>
-            ))}
-          </AnimatePresence>
-        </motion.div>
-      ) : null}
-
-      {feedbackTarget ? (
-        <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-950/20 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-[28px] border border-white/80 bg-white p-6 shadow-[0_26px_56px_-28px_rgba(23,68,129,0.38)]">
-            <p className="section-eyebrow">Feedback Prompt</p>
-            <h3 className="mt-4 text-2xl font-black text-slate-950">후원 후 짧은 의견 남기기</h3>
-            <p className="mt-3 text-sm leading-7 text-slate-500">
-              <strong className="text-slate-950">{feedbackTarget.projectName}</strong>에{" "}
-              <strong className="text-slate-950">{feedbackTarget.tierLabel}</strong> 후원을 시도하셨네요.
-              짧은 의견을 남겨주시면 빌더가 다음 실험을 더 빠르게 이어갈 수 있습니다.
+      {feedbackTarget && (
+        <div className="fixed inset-0 z-30 flex items-center justify-center bg-ink/20 backdrop-blur-sm p-4">
+          <div className="w-full max-w-md rounded-3xl bg-white p-7 shadow-card-hover border border-[#EBEBEB]">
+            <h3 className="text-xl font-black text-ink mb-1">후원 후 피드백</h3>
+            <p className="text-sm text-ink-light">
+              <strong className="text-ink">{feedbackTarget.projectName}</strong>에{" "}
+              <strong className="text-ink">{feedbackTarget.tierLabel}</strong> 후원을 시도하셨네요.
+              짧은 의견을 남겨주시면 빌더에게 큰 도움이 됩니다.
             </p>
 
             <input
               value={feedbackText}
               onChange={(event) => setFeedbackText(event.target.value)}
               placeholder="한 줄 피드백을 입력해주세요"
-              className="field-input mt-5"
+              className="mt-5 w-full rounded-2xl border border-[#EBEBEB] bg-[#F9F7F3] px-4 py-3 text-sm outline-none focus:border-ink/20 focus:bg-white transition-colors"
             />
 
-            {feedbackStatus ? <p className="mt-3 text-sm font-semibold text-[#15803d]">{feedbackStatus}</p> : null}
+            {feedbackStatus && <p className="mt-3 text-sm text-green-600 font-semibold">{feedbackStatus}</p>}
 
-            <div className="mt-6 flex justify-end gap-3">
-              <button type="button" onClick={() => setFeedbackTarget(null)} className="brand-button-secondary px-5 py-2.5">
+            <div className="mt-5 flex justify-end gap-2">
+              <button type="button" onClick={() => setFeedbackTarget(null)} className="rounded-full border border-[#EBEBEB] px-5 py-2.5 text-sm font-bold text-ink-light hover:text-ink hover:border-ink/20 transition-all">
                 닫기
               </button>
               <button
                 type="button"
                 disabled={submittingFeedback || !feedbackText.trim()}
-                onClick={() => void submitFeedback()}
-                className="brand-button px-5 py-2.5 disabled:opacity-40"
+                onClick={submitFeedback}
+                className="rounded-full bg-ink px-5 py-2.5 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-40 hover:bg-ink/90 transition-all"
               >
                 {submittingFeedback ? "저장 중..." : "피드백 제출"}
               </button>
             </div>
           </div>
         </div>
-      ) : null}
+      )}
     </>
   );
 }

@@ -1,78 +1,70 @@
 "use client";
 
-import { BellRing, MailCheck } from "lucide-react";
 import { useState } from "react";
 
 export default function WaitlistButton({ projectId }: { projectId: string }) {
-  const [email, setEmail] = useState("");
-  const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
+    const [email, setEmail] = useState("");
+    const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
 
-  async function handleSubmit(event: React.FormEvent) {
-    event.preventDefault();
-    if (!email) return;
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!email) return;
 
-    setStatus("loading");
-    try {
-      const response = await fetch(`/api/projects/${projectId}/waitlist`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email })
-      });
+        setStatus("loading");
+        try {
+            const res = await fetch(`/api/projects/${projectId}/waitlist`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ email }),
+            });
 
-      if (!response.ok) throw new Error();
-      setStatus("success");
-      setEmail("");
-    } catch {
-      setStatus("error");
+            if (!res.ok) throw new Error();
+            setStatus("success");
+            setEmail("");
+        } catch {
+            setStatus("error");
+        }
+    };
+
+    if (status === "success") {
+        return (
+            <div className="rounded-3xl bg-gradient-to-br from-emerald-50 to-teal-50 p-8 text-center border-2 border-emerald-200/60 shadow-lg">
+                <p className="text-4xl mb-3 animate-bounce inline-block">🎉</p>
+                <p className="text-xl font-black text-emerald-900">신청 완료되었습니다!</p>
+                <p className="text-emerald-700 text-sm mt-2 font-medium">🚀 서비스가 준비되면 이메일로 가장 먼저 알려드릴게요.</p>
+            </div>
+        );
     }
-  }
 
-  if (status === "success") {
     return (
-      <div className="soft-card px-5 py-5 text-center">
-        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-[18px] bg-[#e9f9ef] text-[#16a34a]">
-          <MailCheck className="h-6 w-6" />
+        <div className="rounded-3xl bg-gradient-to-br from-blue-50 via-cyan-50 to-blue-50 p-8 border border-blue-200/60 shadow-lg">
+            <div className="flex items-center gap-3 mb-2">
+                <span className="text-3xl">📧</span>
+                <h3 className="text-2xl font-black text-blue-900">출시 알림 받기</h3>
+            </div>
+            <p className="mt-1 text-sm text-blue-700 font-medium mb-6">서비스가 준비되면 이메일로 가장 먼저 알려드립니다.</p>
+
+            <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-3">
+                <input
+                    type="email"
+                    placeholder="email@example.com"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="flex-1 rounded-2xl border-2 border-blue-200 px-5 py-3.5 text-sm font-medium bg-white/80 backdrop-blur-sm focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-300/50 transition-all disabled:opacity-50 placeholder:text-slate-400"
+                    disabled={status === "loading"}
+                />
+                <button
+                    type="submit"
+                    disabled={status === "loading"}
+                    className="rounded-2xl bg-gradient-to-r from-blue-600 to-cyan-600 px-8 py-3.5 text-sm font-black text-white shadow-lg hover:shadow-xl hover:from-blue-700 hover:to-cyan-700 hover:-translate-y-0.5 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed border border-blue-700/50"
+                >
+                    {status === "loading" ? "신청 중..." : "신청하기"}
+                </button>
+            </form>
+            {status === "error" && (
+                <p className="mt-4 text-sm text-red-600 font-bold bg-red-50 rounded-xl px-4 py-2 border border-red-200">⚠️ 오류가 발생했습니다. 다시 시도해 주세요.</p>
+            )}
         </div>
-        <p className="mt-4 text-xl font-black text-slate-950">대기열 등록이 완료되었습니다.</p>
-        <p className="mt-2 text-sm leading-6 text-slate-500">
-          서비스가 준비되면 입력한 이메일로 먼저 알려드릴게요.
-        </p>
-      </div>
     );
-  }
-
-  return (
-    <div className="soft-card px-5 py-5">
-      <div className="flex items-center gap-3">
-        <div className="flex h-11 w-11 items-center justify-center rounded-[16px] bg-[#eef5ff] text-[#1d79d8]">
-          <BellRing className="h-5 w-5" />
-        </div>
-        <div>
-          <p className="text-lg font-black text-slate-950">출시 알림 받기</p>
-          <p className="text-sm text-slate-500">준비되면 이메일로 가장 먼저 알려드립니다.</p>
-        </div>
-      </div>
-
-      <form onSubmit={handleSubmit} className="mt-4 space-y-3">
-        <input
-          type="email"
-          required
-          placeholder="email@example.com"
-          value={email}
-          onChange={(event) => setEmail(event.target.value)}
-          disabled={status === "loading"}
-          className="field-input"
-        />
-        <button type="submit" disabled={status === "loading"} className="brand-button w-full">
-          {status === "loading" ? "등록 중..." : "대기열 등록하기"}
-        </button>
-      </form>
-
-      {status === "error" ? (
-        <p className="mt-4 rounded-[16px] bg-red-50 px-4 py-3 text-sm text-red-700">
-          요청 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.
-        </p>
-      ) : null}
-    </div>
-  );
 }

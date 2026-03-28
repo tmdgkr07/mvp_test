@@ -10,7 +10,7 @@ import { getProjectStatusMeta, isOfficiallyLaunched } from "@/lib/project-status
 import { getUserRole, isAdminSession, isSuperAdminSession } from "@/lib/permissions";
 
 export const metadata: Metadata = {
-  title: "관리자 콘솔 | feedback4U",
+  title: "관리자 콘솔 | 밥주세요",
   description: "전체 서비스 운영 현황과 권한 변경 내역을 확인합니다."
 };
 

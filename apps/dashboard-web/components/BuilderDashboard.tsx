@@ -582,7 +582,7 @@ export default function BuilderDashboard({
                     <div className="mb-4">
                       <p className="text-xs font-bold uppercase tracking-wide text-gray-400">퍼널 요약</p>
                       <p className="mt-2 text-sm text-gray-500">
-                        첫 단계인 <strong className="text-gray-700">프로젝트 노출</strong>는 feedback4U 홈 또는 탐색 화면에서
+                        첫 단계인 <strong className="text-gray-700">프로젝트 노출</strong>는 밥주세요 홈 또는 탐색 화면에서
                         서비스 카드가 사용자에게 보인 횟수입니다.
                       </p>
                     </div>
